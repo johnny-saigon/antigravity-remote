@@ -23,6 +23,9 @@ export async function verifyGeminiConnection(
       const response = await ai.models.generateContent({
         model: candidate,
         contents: 'Respond with exact word: ONLINE',
+        config: {
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       });
       const text = (response.text || '').trim();
       if (text.length > 0) {
@@ -205,6 +208,7 @@ export async function dispatchProjectInstruction(params: {
           config: {
             systemInstruction,
             temperature: 0.3,
+            thinkingConfig: { thinkingBudget: 0 },
           },
         });
 
