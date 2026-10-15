@@ -1,7 +1,7 @@
 # Active Context — Antigravity Remote (`v1.0.0`)
 
 - **Deployment Target**: Vast.ai (`85.10.218.46:44016`, Instance `50951592`) at `/workspace/antigravity-remote` on `127.0.0.1:8787` (`supervisorctl status antigravity_remote`).
-- **Public URL**: `https://designengineering.io/antigravity`
+- **Public URLs**: `https://removeback.gd/antigravity/` & `https://binaryday.app/antigravity/` (Host PIN: `1631`)
 - **Hydrated Inventory**:
   - **Workspaces (4)**: `AntigravityRemote`, `RemoveBackGround`, `BinaryDay`, `SnapCal`
   - **MCP Servers (7)**: `Vast.ai`, `Cloudflare`, `OVH`, `GitHub`, `Stitch`, `Resend`, `Stripe`

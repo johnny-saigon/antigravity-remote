@@ -67,7 +67,7 @@ const KNOWN_MCP_METADATA: Record<
     label: 'Cloudflare Edge & Tunnels',
     toolsCount: 78,
     summary: 'Zones, DNS, Workers, KV, R2, D1, Origin Rules & Edge Routing',
-    domain: 'designengineering.io / binaryday.app / removeback.gd',
+    domain: 'removeback.gd / binaryday.app / snapcal.io',
   },
   ovh: {
     label: 'OVHcloud Registrar & DNS',
@@ -132,7 +132,7 @@ const CLUSTER_PROJECTS: KnownClusterProjectSpec[] = [
     daemonName: 'antigravity_remote',
     internalPort: 8787,
     healthPath: '/antigravity/api/health',
-    publicUrl: 'https://designengineering.io/antigravity',
+    publicUrl: 'https://removeback.gd/antigravity',
     tier2Allocation: 'Port 8787 • Zero-Config Gemini Profile Sync • CPU Only (0B VRAM)',
   },
   {

@@ -8,4 +8,4 @@
 ## 2. Core Technical Stack
 - **Server**: Node.js 20+ ES Modules, TypeScript (`strict: true`), Fastify 5, `@google/genai`, `zod`.
 - **Client**: Zero-G Glass Mobile PWA for Brave Browser on iOS (`100dvh` + `visualViewport` pinning, 16px inputs, inline Antigravity SVG & generated Retina PNG icons).
-- **Routing**: Subpath-aware (`/antigravity`) routed via Cloudflare + OVH (`https://designengineering.io/antigravity`) and Vast.ai Caddy (`:10100` / Ext `:44190`).
+- **Routing**: Subpath-aware (`/antigravity`) routed via Cloudflare + Vast.ai Caddy (`https://removeback.gd/antigravity` & `https://binaryday.app/antigravity`).

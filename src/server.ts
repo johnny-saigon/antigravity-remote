@@ -24,7 +24,7 @@ const DATA_DIR = path.join(ROOT_DIR, 'data');
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '127.0.0.1';
 const BASE_PATH = process.env.BASE_PATH || '/antigravity';
-const HOST_PIN = process.env.HOST_PIN || '4419';
+const HOST_PIN = process.env.HOST_PIN || '1631';
 const SESSION_SECRET =
   process.env.SESSION_SECRET || 'ag-remote-zero-g-secret-85-10-218-46-vast';
 let runtimeGeminiKey = process.env.GEMINI_API_KEY || '';
