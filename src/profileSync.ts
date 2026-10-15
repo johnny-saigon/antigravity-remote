@@ -293,7 +293,9 @@ export async function hydrateAntigravityProfile(
 
   const installationId = safeReadText(installationIdPath).trim() || 'agy-vast-50951592';
   const hooksRaw = safeReadText(hooksJsonPath);
-  const hooksConfigured = hooksRaw.includes('/antigravity/api/webhooks/antigravity');
+  const hooksConfigured =
+    hooksRaw.includes('hooks-bridge.sh') ||
+    hooksRaw.includes('/antigravity/api/webhooks/antigravity');
 
   // Extract concise bullet rules from GEMINI.md
   const geminiMdRules = geminiMdRaw

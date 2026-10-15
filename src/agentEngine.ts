@@ -15,27 +15,33 @@ export async function verifyGeminiConnection(
   if (!apiKey || apiKey.trim().length < 10) {
     return { ok: false, model: modelName, latencyMs: 0, error: 'Missing Gemini API key' };
   }
-  try {
-    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: 'Respond with exact word: ONLINE',
-    });
-    const text = (response.text || '').trim();
-    return {
-      ok: text.length > 0,
-      model: modelName,
-      latencyMs: Date.now() - t0,
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      ok: false,
-      model: modelName,
-      latencyMs: Date.now() - t0,
-      error: msg,
-    };
+  const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+  const candidates = Array.from(new Set([modelName, 'gemini-3.5-flash', 'gemini-3.8-flash']));
+  let lastErr = '';
+  for (const candidate of candidates) {
+    try {
+      const response = await ai.models.generateContent({
+        model: candidate,
+        contents: 'Respond with exact word: ONLINE',
+      });
+      const text = (response.text || '').trim();
+      if (text.length > 0) {
+        return {
+          ok: true,
+          model: candidate,
+          latencyMs: Date.now() - t0,
+        };
+      }
+    } catch (err) {
+      lastErr = err instanceof Error ? err.message : String(err);
+    }
   }
+  return {
+    ok: false,
+    model: modelName,
+    latencyMs: Date.now() - t0,
+    error: lastErr,
+  };
 }
 
 function gatherWorkspaceSnapshot(project: DiscoveredProject): {
@@ -185,37 +191,58 @@ export async function dispatchProjectInstruction(params: {
     toolEvents.push(preGenEvt);
     broadcast('hook_event', preGenEvt);
 
-    const stream = await ai.models.generateContentStream({
-      model: modelName,
-      contents: prompt,
-      config: {
-        systemInstruction,
-        temperature: 0.3,
-      },
-    });
+    const candidates = Array.from(new Set([modelName, 'gemini-3.5-flash', 'gemini-3.8-flash']));
+    let activeModel = modelName;
+    let succeeded = false;
+    let lastStreamErr: unknown = null;
 
-    for await (const chunk of stream) {
-      const piece = chunk.text || '';
-      if (piece) {
-        fullText += piece;
-        store.updateMessage(project.id, assistantMessage.id, (m) => {
-          m.content = fullText;
-          m.toolEvents = toolEvents;
+    for (const candidate of candidates) {
+      try {
+        activeModel = candidate;
+        const stream = await ai.models.generateContentStream({
+          model: candidate,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            temperature: 0.3,
+          },
         });
-        broadcast('agent_chunk', {
-          projectId: project.id,
-          messageId: assistantMessage.id,
-          delta: piece,
-          content: fullText,
-        });
+
+        for await (const chunk of stream) {
+          const piece = chunk.text || '';
+          if (piece) {
+            fullText += piece;
+            store.updateMessage(project.id, assistantMessage.id, (m) => {
+              m.content = fullText;
+              m.model = activeModel;
+              m.toolEvents = toolEvents;
+            });
+            broadcast('agent_chunk', {
+              projectId: project.id,
+              messageId: assistantMessage.id,
+              delta: piece,
+              content: fullText,
+            });
+          }
+        }
+        if (fullText.trim().length > 0) {
+          succeeded = true;
+          break;
+        }
+      } catch (e) {
+        lastStreamErr = e;
       }
+    }
+
+    if (!succeeded) {
+      throw lastStreamErr || new Error('Empty stream response');
     }
 
     const postGenEvt = store.addHookEvent({
       projectId: project.id,
       eventType: 'PostToolUse',
       toolName: 'gemini_profile_agent',
-      summary: `Synthesized response (${fullText.length} chars)`,
+      summary: `Synthesized response via ${activeModel} (${fullText.length} chars)`,
       status: 'done',
     });
     toolEvents.push(postGenEvt);
