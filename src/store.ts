@@ -14,6 +14,24 @@ export interface ToolEventItem {
   timestamp: string;
 }
 
+export interface FileSnapshot {
+  relativePath: string;
+  existed: boolean;
+  originalContent: string;
+  newContent?: string;
+}
+
+export interface WorkspaceCheckpoint {
+  id: string;
+  projectId: string;
+  userMessageId: string;
+  assistantMessageId?: string;
+  gitBranch: string;
+  gitHead: string;
+  createdAt: string;
+  modifiedFiles: FileSnapshot[];
+}
+
 export interface ConversationMessage {
   id: string;
   projectId: string;
@@ -23,6 +41,7 @@ export interface ConversationMessage {
   refinedPrompt?: string;
   model?: string;
   toolEvents?: ToolEventItem[];
+  checkpoint?: WorkspaceCheckpoint;
   timestamp: string;
 }
 
@@ -46,8 +65,8 @@ const DEFAULT_STATE: PersistedState = {
         projectId: 'antigravity-remote',
         role: 'assistant',
         content:
-          '**Antigravity Remote v1.0** online (`127.0.0.1:8787`).\n\nZero-Config Gemini Profile Hydration has automatically discovered **4 colocated workspaces** (`RemoveBackGround`, `BinaryDay`, `SnapCal`, `AntigravityRemote`), **7 MCP servers** (`Vast.ai`, `Cloudflare`, `OVH`, `GitHub`, `Stitch`, `Resend`, `Stripe`), and your **3-Tier Memory Hierarchy** (`~/.gemini/GEMINI.md` + `.agents/rules/infra.md`).\n\nTap any Slash Chip below or dictate a voice instruction using the iOS microphone.',
-        model: 'gemini-3.8-flash',
+          '**Antigravity Remote v1.1** online (`127.0.0.1:8787`).\n\nZero-Config Gemini Profile Hydration has automatically discovered **4 colocated workspaces** (`RemoveBackGround`, `BinaryDay`, `SnapCal`, `AntigravityRemote`), **7 MCP servers** (`Vast.ai`, `Cloudflare`, `OVH`, `GitHub`, `Stitch`, `Resend`, `Stripe`), and your **3-Tier Memory Hierarchy** (`~/.gemini/GEMINI.md` + `.agents/rules/infra.md`).\n\n- **Agentic Workspace Tools**: `read_file`, `edit_file`, `write_file`, and `run_command` are active.\n- **Antigravity Rollbacks**: Every prompt creates an automatic workspace snapshot so you can revert conversation turns and file edits with one tap.\n- **Session Protection**: Protected by HMAC-SHA256 JWT + `HttpOnly` strict cookie with a **30-minute sliding inactivity auto-logout**.',
+        model: 'gemini-3.5-flash',
         timestamp: new Date().toISOString(),
         toolEvents: [
           {
@@ -69,7 +88,7 @@ const DEFAULT_STATE: PersistedState = {
         role: 'assistant',
         content:
           '**RemoveBackGround** workspace synced (`/workspace` • `https://removeback.gd`).\n\n- **GPU Allocation**: 100% Dedicated NVIDIA RTX 4060 Ti (`16 GB VRAM` on `cuda:0`)\n- **Daemon**: `model_server` (`127.0.0.1:7861`)\n- **Isolation**: PostgreSQL `removebg` • Redis `DB 2` • S3 `removebg-private`',
-        model: 'gemini-3.8-flash',
+        model: 'gemini-3.5-flash',
         timestamp: new Date().toISOString(),
       },
     ],
@@ -80,7 +99,7 @@ const DEFAULT_STATE: PersistedState = {
         role: 'assistant',
         content:
           '**BinaryDay** workspace synced (`/workspace/binaryday` • `https://binaryday.app`).\n\n- **Daemon**: `binaryday` (`127.0.0.1:4001`)\n- **Isolation**: PostgreSQL `binaryday` • Redis `DB 0` • `0 Bytes GPU VRAM`\n- **Edge Ingress**: Cloudflare Origin Rule (`44190`) + Pooled Caddy',
-        model: 'gemini-3.8-flash',
+        model: 'gemini-3.5-flash',
         timestamp: new Date().toISOString(),
       },
     ],
@@ -91,7 +110,7 @@ const DEFAULT_STATE: PersistedState = {
         role: 'assistant',
         content:
           '**SnapCal** workspace synced (`/workspace/snapcal` • `https://snapcal.io`).\n\n- **Daemon**: `snapcal` (`127.0.0.1:4002`)\n- **Isolation**: PostgreSQL `snapcal` • Redis `DB 1` • `0 Bytes GPU VRAM`',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.5-flash',
         timestamp: new Date().toISOString(),
       },
     ],
@@ -175,6 +194,85 @@ export class StateStore {
     updater(found);
     this.save();
     return found;
+  }
+
+  /**
+   * Rolls back the conversation and any workspace file modifications back to before
+   * the specified message turn (just like Antigravity IDE's "Revert to this step").
+   */
+  public rollbackToMessage(
+    projectId: string,
+    targetMessageId: string,
+    workspacePath: string
+  ): {
+    ok: boolean;
+    restoredFiles: string[];
+    removedMessageCount: number;
+    rolledBackPrompt: string;
+    messages: ConversationMessage[];
+  } {
+    const list = this.state.messagesByProject[projectId] || [];
+    let targetIdx = list.findIndex((m) => m.id === targetMessageId);
+    if (targetIdx === -1) {
+      return {
+        ok: false,
+        restoredFiles: [],
+        removedMessageCount: 0,
+        rolledBackPrompt: '',
+        messages: list,
+      };
+    }
+
+    // If the user clicked rollback on an assistant card, include its preceding user prompt in the rollback
+    if (list[targetIdx].role === 'assistant' && targetIdx > 0 && list[targetIdx - 1].role === 'user') {
+      targetIdx = targetIdx - 1;
+    }
+
+    // Never delete the initial welcome message at index 0 if it's an assistant welcome card
+    if (targetIdx === 0 && list[0]?.id?.startsWith('welcome-')) {
+      targetIdx = 1;
+    }
+
+    const toRemove = list.slice(targetIdx);
+    const rolledBackUserMsg = toRemove.find((m) => m.role === 'user');
+    const rolledBackPrompt = rolledBackUserMsg?.content || '';
+
+    const restoredSet = new Set<string>();
+
+    // Revert file snapshots in reverse chronological order
+    for (let i = toRemove.length - 1; i >= 0; i--) {
+      const msg = toRemove[i];
+      const snaps = msg.checkpoint?.modifiedFiles || [];
+      for (let j = snaps.length - 1; j >= 0; j--) {
+        const snap = snaps[j];
+        try {
+          const absTarget = path.resolve(workspacePath, snap.relativePath);
+          // Security boundary check: must remain inside workspacePath
+          if (!absTarget.startsWith(path.resolve(workspacePath))) continue;
+          if (snap.existed) {
+            fs.mkdirSync(path.dirname(absTarget), { recursive: true });
+            fs.writeFileSync(absTarget, snap.originalContent, 'utf-8');
+          } else if (fs.existsSync(absTarget)) {
+            fs.rmSync(absTarget, { force: true });
+          }
+          restoredSet.add(snap.relativePath);
+        } catch {
+          // ignore individual file restore failure
+        }
+      }
+    }
+
+    this.state.messagesByProject[projectId] = list.slice(0, targetIdx);
+    this.state.projectStatuses[projectId] = 'Idle';
+    this.save();
+
+    return {
+      ok: true,
+      restoredFiles: Array.from(restoredSet),
+      removedMessageCount: toRemove.length,
+      rolledBackPrompt,
+      messages: this.state.messagesByProject[projectId],
+    };
   }
 
   public addHookEvent(evt: Omit<ToolEventItem, 'id' | 'timestamp'>): ToolEventItem {

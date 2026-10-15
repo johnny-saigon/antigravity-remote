@@ -27,6 +27,7 @@ const BASE_PATH = process.env.BASE_PATH || '/antigravity';
 const HOST_PIN = process.env.HOST_PIN || '1631';
 const SESSION_SECRET =
   process.env.SESSION_SECRET || 'ag-remote-zero-g-secret-85-10-218-46-vast';
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes (1800s) sliding window
 let runtimeGeminiKey = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
@@ -34,6 +35,16 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 ensureBrandingAssets(PUBLIC_DIR);
 
 const store = new StateStore(DATA_DIR);
+
+// Sliding 30-Minute Inactivity Session Tracker
+interface SessionRecord {
+  token: string;
+  createdAt: number;
+  lastActivityAt: number;
+  ip: string;
+}
+const sessionRegistry = new Map<string, SessionRecord>();
+const revokedTokens = new Set<string>();
 
 // Zod Schemas (Tier 1 Policy: explicit runtime validation at external boundaries)
 const LoginBodySchema = z.object({
@@ -46,6 +57,10 @@ const InstructBodySchema = z.object({
   prompt: z.string().min(1).max(16000),
   mode: z.string().optional().default('voice-instruct'),
   useGeminiRefinement: z.boolean().optional().default(true),
+});
+
+const RollbackBodySchema = z.object({
+  messageId: z.string().min(1),
 });
 
 const AntigravityWebhookSchema = z
@@ -71,7 +86,7 @@ const AntigravityWebhookSchema = z
   .passthrough();
 
 // Lightweight HMAC JWT helper
-function signSessionToken(payload: { sub: string; iat: number }): string {
+function signSessionToken(payload: { sub: string; iat: number; jti: string }): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const sig = crypto
@@ -81,33 +96,83 @@ function signSessionToken(payload: { sub: string; iat: number }): string {
   return `${header}.${body}.${sig}`;
 }
 
-function verifySessionToken(token?: string): boolean {
-  if (!token) return false;
-  if (token === HOST_PIN) return true;
-  const parts = token.split('.');
-  if (parts.length !== 3) return false;
-  const [header, body, sig] = parts;
-  const expected = crypto
-    .createHmac('sha256', SESSION_SECRET)
-    .update(`${header}.${body}`)
-    .digest('base64url');
-  return sig === expected;
-}
+function verifyAndTouchSessionToken(token?: string, touch = true): {
+  valid: boolean;
+  expired?: boolean;
+  record?: SessionRecord;
+} {
+  if (!token) return { valid: false };
+  if (revokedTokens.has(token)) return { valid: false };
 
-function isAuthenticated(req: FastifyRequest): boolean {
-  const cookieToken = req.cookies?.['ag_session'];
-  if (verifySessionToken(cookieToken)) return true;
-
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const bearer = authHeader.slice(7).trim();
-    if (verifySessionToken(bearer)) return true;
+  let iat = Date.now();
+  if (token !== HOST_PIN) {
+    const parts = token.split('.');
+    if (parts.length !== 3) return { valid: false };
+    const [header, body, sig] = parts;
+    const expected = crypto
+      .createHmac('sha256', SESSION_SECRET)
+      .update(`${header}.${body}`)
+      .digest('base64url');
+    if (sig !== expected) return { valid: false };
+    try {
+      const parsedBody = JSON.parse(Buffer.from(body, 'base64url').toString('utf-8')) as {
+        iat?: number;
+      };
+      if (parsedBody.iat) iat = parsedBody.iat;
+    } catch {
+      return { valid: false };
+    }
   }
 
-  const queryToken = (req.query as Record<string, string | undefined>)?.token;
-  if (verifySessionToken(queryToken)) return true;
+  const now = Date.now();
+  let rec = sessionRegistry.get(token);
+  if (!rec) {
+    // Hydrate session record if server restarted within 30m window
+    if (now - iat > INACTIVITY_TIMEOUT_MS) {
+      return { valid: false, expired: true };
+    }
+    rec = {
+      token,
+      createdAt: iat,
+      lastActivityAt: now,
+      ip: '127.0.0.1',
+    };
+    sessionRegistry.set(token, rec);
+  }
 
-  return false;
+  if (now - rec.lastActivityAt > INACTIVITY_TIMEOUT_MS) {
+    sessionRegistry.delete(token);
+    revokedTokens.add(token);
+    return { valid: false, expired: true };
+  }
+
+  if (touch) {
+    rec.lastActivityAt = now;
+  }
+
+  return { valid: true, record: rec };
+}
+
+function extractRequestToken(req: FastifyRequest): string | undefined {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  const cookieToken = req.cookies?.['ag_session'];
+  if (cookieToken) return cookieToken;
+  const queryToken = (req.query as Record<string, string | undefined>)?.token;
+  if (queryToken) return queryToken;
+  return undefined;
+}
+
+function isAuthenticated(req: FastifyRequest, touch = true): {
+  ok: boolean;
+  expired?: boolean;
+  record?: SessionRecord;
+} {
+  const token = extractRequestToken(req);
+  const res = verifyAndTouchSessionToken(token, touch);
+  return { ok: res.valid, expired: res.expired, record: res.record };
 }
 
 // Active SSE Clients Registry
@@ -170,6 +235,28 @@ await app.register(fastifyStatic, {
   decorateReply: false,
 });
 
+function buildSecurityMetadata(
+  hydratedUser: string,
+  hydratedHost: string,
+  record?: SessionRecord
+) {
+  const now = Date.now();
+  const lastAct = record?.lastActivityAt || now;
+  const elapsedMs = Math.max(0, now - lastAct);
+  const remainingSec = Math.max(0, Math.floor((INACTIVITY_TIMEOUT_MS - elapsedMs) / 1000));
+  return {
+    authenticatedUser: hydratedUser,
+    hostname: hydratedHost,
+    authMethod: 'Host PIN + HMAC-SHA256 JWT + HttpOnly Strict Cookie',
+    tlsProtection: 'Cloudflare TLS 1.3 Edge → Loopback 127.0.0.1:8787',
+    executionIsolation: 'Tier 2 Guardrails (0B GPU VRAM · Workspace Path Sandbox)',
+    inactivityTimeoutSec: 1800,
+    remainingSec,
+    sessionCreatedAt: new Date(record?.createdAt || now).toISOString(),
+    lastActivityAt: new Date(lastAct).toISOString(),
+  };
+}
+
 // Register API routes under a prefix helper so both `/antigravity/api/*` and `/api/*` work
 function registerApiRoutes(prefix: string): void {
   // Health Check
@@ -178,10 +265,11 @@ function registerApiRoutes(prefix: string): void {
     return {
       status: 'ok',
       service: 'antigravity-remote',
-      version: '1.0.0',
+      version: '1.1.0',
       basePath: BASE_PATH,
       geminiConfigured: Boolean(runtimeGeminiKey),
       geminiModel: GEMINI_MODEL,
+      inactivityTimeoutMinutes: 30,
       sseClients: sseClients.size,
       timestamp: new Date().toISOString(),
     };
@@ -214,8 +302,21 @@ function registerApiRoutes(prefix: string): void {
       runtimeGeminiKey = geminiApiKey.trim();
     }
 
+    const now = Date.now();
     const geminiCheck = await verifyGeminiConnection(runtimeGeminiKey, GEMINI_MODEL);
-    const token = signSessionToken({ sub: 'antigravity-ios', iat: Date.now() });
+    const token = signSessionToken({
+      sub: 'antigravity-ios',
+      iat: now,
+      jti: crypto.randomBytes(6).toString('hex'),
+    });
+
+    const record: SessionRecord = {
+      token,
+      createdAt: now,
+      lastActivityAt: now,
+      ip: req.ip || '127.0.0.1',
+    };
+    sessionRegistry.set(token, record);
 
     const isSecure =
       req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
@@ -225,7 +326,7 @@ function registerApiRoutes(prefix: string): void {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 30, // 30 minutes matching inactivity window
     });
 
     const hydrated = await hydrateAntigravityProfile(
@@ -238,15 +339,39 @@ function registerApiRoutes(prefix: string): void {
       ok: true,
       token,
       geminiVerification: geminiCheck,
+      security: buildSecurityMetadata(
+        hydrated.profile.user,
+        hydrated.profile.hostname,
+        record
+      ),
       ...hydrated,
     };
+  });
+
+  // 1b. POST /api/auth/logout — Explicit Logout / Inactivity Auto-Logout Handler
+  app.post(`${prefix}/api/auth/logout`, async (req, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    const token = extractRequestToken(req);
+    if (token) {
+      sessionRegistry.delete(token);
+      revokedTokens.add(token);
+    }
+    reply.clearCookie('ag_session', { path: BASE_PATH });
+    return { ok: true, loggedOutAt: new Date().toISOString() };
   });
 
   // 2. GET /api/profile/sync — Zero-Config Gemini & Antigravity Profile Hydration
   app.get(`${prefix}/api/profile/sync`, async (req, reply) => {
     reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
-    if (!isAuthenticated(req)) {
-      return reply.code(401).send({ error: 'Authentication required' });
+    const auth = isAuthenticated(req, true);
+    if (!auth.ok) {
+      reply.clearCookie('ag_session', { path: BASE_PATH });
+      return reply.code(401).send({
+        error: auth.expired
+          ? 'Session expired after 30 minutes of inactivity. Please sign in again.'
+          : 'Authentication required',
+        expired: Boolean(auth.expired),
+      });
     }
 
     const hydrated = await hydrateAntigravityProfile(
@@ -262,6 +387,11 @@ function registerApiRoutes(prefix: string): void {
 
     return {
       ...hydrated,
+      security: buildSecurityMetadata(
+        hydrated.profile.user,
+        hydrated.profile.hostname,
+        auth.record
+      ),
       messagesByProject,
       recentHooks: store.getRecentHooks(),
     };
@@ -272,8 +402,14 @@ function registerApiRoutes(prefix: string): void {
     `${prefix}/api/projects/:id/instruct`,
     async (req, reply) => {
       reply.header('Cache-Control', 'no-store');
-      if (!isAuthenticated(req)) {
-        return reply.code(401).send({ error: 'Authentication required' });
+      const auth = isAuthenticated(req, true);
+      if (!auth.ok) {
+        return reply.code(401).send({
+          error: auth.expired
+            ? 'Session expired after 30 minutes of inactivity.'
+            : 'Authentication required',
+          expired: Boolean(auth.expired),
+        });
       }
 
       const parsed = InstructBodySchema.safeParse(req.body);
@@ -313,6 +449,77 @@ function registerApiRoutes(prefix: string): void {
         userMessage,
         assistantMessage,
         messages: store.getMessages(project.id),
+      };
+    }
+  );
+
+  // 3b. POST /api/projects/:id/rollback — Antigravity Turn & File Checkpoint Rollback
+  app.post<{ Params: { id: string } }>(
+    `${prefix}/api/projects/:id/rollback`,
+    async (req, reply) => {
+      reply.header('Cache-Control', 'no-store');
+      const auth = isAuthenticated(req, true);
+      if (!auth.ok) {
+        return reply.code(401).send({ error: 'Authentication required' });
+      }
+
+      const parsed = RollbackBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({
+          error: 'Invalid rollback payload',
+          details: parsed.error.flatten(),
+        });
+      }
+
+      const projectId = req.params.id;
+      const hydrated = await hydrateAntigravityProfile(
+        store.getProjectStatuses(),
+        GEMINI_MODEL,
+        Boolean(runtimeGeminiKey)
+      );
+
+      const project =
+        hydrated.projects.find((p) => p.id === projectId || p.slug === projectId) ||
+        hydrated.projects[0];
+
+      const result = store.rollbackToMessage(
+        project.id,
+        parsed.data.messageId,
+        project.workspacePath
+      );
+
+      if (!result.ok) {
+        return reply.code(404).send({ error: 'Target message checkpoint not found' });
+      }
+
+      const hookEvt = store.addHookEvent({
+        projectId: project.id,
+        eventType: 'PostToolUse',
+        toolName: 'rollback_checkpoint',
+        summary: `Rolled back ${result.removedMessageCount} message(s) in ${project.name}${
+          result.restoredFiles.length > 0
+            ? ` & restored ${result.restoredFiles.join(', ')}`
+            : ''
+        }`,
+        status: 'done',
+      });
+
+      broadcastSse('hook_event', hookEvt);
+      broadcastSse('status_changed', { projectId: project.id, status: 'Idle' });
+      broadcastSse('rollback_completed', {
+        projectId: project.id,
+        messages: result.messages,
+        restoredFiles: result.restoredFiles,
+        rolledBackPrompt: result.rolledBackPrompt,
+      });
+
+      return {
+        ok: true,
+        projectId: project.id,
+        restoredFiles: result.restoredFiles,
+        removedMessageCount: result.removedMessageCount,
+        rolledBackPrompt: result.rolledBackPrompt,
+        messages: result.messages,
       };
     }
   );
@@ -376,7 +583,8 @@ function registerApiRoutes(prefix: string): void {
 
   // 5. GET /api/stream — Server-Sent Events (SSE) Real-Time Stream
   app.get(`${prefix}/api/stream`, async (req, reply) => {
-    if (!isAuthenticated(req)) {
+    const auth = isAuthenticated(req, false);
+    if (!auth.ok) {
       return reply.code(401).send({ error: 'Authentication required' });
     }
 

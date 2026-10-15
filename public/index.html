@@ -90,18 +90,17 @@
     .top-nav {
       flex-shrink: 0;
       padding-top: calc(var(--safe-top) + 8px);
-      padding-bottom: 10px;
+      padding-bottom: 8px;
       padding-left: 24px;
       padding-right: 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      background: rgba(7, 8, 12, 0.82);
+      gap: 8px;
+      background: rgba(7, 8, 12, 0.85);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border-specular);
-      box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
       z-index: 20;
     }
 
@@ -117,7 +116,7 @@
       cursor: pointer;
       transition: transform 0.14s ease, border-color 0.2s ease;
       min-height: 44px;
-      max-width: calc(100% - 54px);
+      max-width: calc(100% - 102px);
     }
 
     .workspace-pill:active {
@@ -220,9 +219,16 @@
       50% { transform: scale(1.45); opacity: 0.65; }
     }
 
-    .sync-btn {
-      width: 44px;
-      height: 44px;
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .sync-btn, .lock-btn {
+      width: 42px;
+      height: 42px;
       border-radius: 9999px;
       background: var(--glass-surface);
       border: 1px solid var(--border-specular);
@@ -233,12 +239,83 @@
       justify-content: center;
       cursor: pointer;
       flex-shrink: 0;
-      transition: transform 0.14s ease, color 0.2s ease;
+      transition: transform 0.14s ease, color 0.2s ease, border-color 0.2s ease;
     }
 
-    .sync-btn:active {
+    .sync-btn:active, .lock-btn:active {
       transform: scale(0.92);
       color: var(--accent-cyan);
+    }
+
+    .lock-btn:hover {
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #FDA4AF;
+    }
+
+    /* Security & User Profile Protection Strip */
+    .security-bar {
+      flex-shrink: 0;
+      padding: 6px 24px;
+      background: rgba(11, 14, 23, 0.92);
+      border-bottom: 1px solid rgba(30, 34, 53, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      z-index: 19;
+    }
+    .security-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sec-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .sec-marker {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.28);
+      color: #6EE7B7;
+      font-size: 10.5px;
+      cursor: pointer;
+    }
+
+    .sec-user-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: #E0F2FE;
+      font-size: 10.5px;
+      cursor: pointer;
+    }
+
+    .sec-timer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(124, 58, 237, 0.14);
+      border: 1px solid rgba(124, 58, 237, 0.32);
+      color: #DDD6FE;
+      font-size: 10.5px;
+      cursor: pointer;
     }
 
     /* Main Stream / Conversation Area */
@@ -247,7 +324,7 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-y: contain;
-      padding: 16px 24px 20px 24px;
+      padding: 14px 24px 20px 24px;
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -283,6 +360,7 @@
       font-size: 11.5px;
       color: var(--text-secondary);
       overflow: hidden;
+      flex-shrink: 0;
     }
 
     .hook-strip .hook-tag {
@@ -316,7 +394,7 @@
 
     .msg-card.user {
       align-self: flex-end;
-      max-width: 88%;
+      max-width: 90%;
       background: linear-gradient(135deg, rgba(124, 58, 237, 0.28) 0%, rgba(79, 70, 229, 0.26) 60%, rgba(56, 189, 248, 0.2) 100%);
       border: 1px solid rgba(124, 58, 237, 0.45);
       box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
@@ -334,6 +412,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
       margin-bottom: 8px;
       font-size: 11px;
       color: var(--text-muted);
@@ -350,7 +429,7 @@
     .msg-body code {
       font-family: var(--font-mono);
       font-size: 12.5px;
-      background: rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.08);
       padding: 1.5px 5px;
       border-radius: 5px;
       color: #7DD3FC;
@@ -366,6 +445,20 @@
       font-size: 12px;
       color: #E2E8F0;
       margin: 8px 0;
+    }
+
+    .msg-body .md-bullet {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      margin: 4px 0;
+      padding-left: 4px;
+    }
+
+    .msg-body .md-hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 10px 0;
     }
 
     .tool-trace-list {
@@ -384,6 +477,54 @@
       font-family: var(--font-mono);
       font-size: 11px;
       color: var(--text-secondary);
+    }
+
+    /* Antigravity Checkpoint & Rollback Action Bar */
+    .rollback-bar {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .checkpoint-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      font-size: 10.5px;
+    }
+
+    .rollback-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.1);
+      color: #7DD3FC;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.14s ease;
+    }
+
+    .rollback-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent-cyan);
+      color: #FFFFFF;
+    }
+
+    .rollback-btn:active {
+      transform: scale(0.94);
     }
 
     /* Voice-First Composer Bar */
@@ -539,7 +680,7 @@
       pointer-events: none;
     }
 
-    /* Zero-G Glass Bottom Sheet (Project & MCP Switcher) */
+    /* Zero-G Glass Bottom Sheet (Project, MCP & Security Switcher) */
     .sheet-backdrop {
       position: fixed;
       inset: 0;
@@ -591,19 +732,19 @@
 
     .sheet-tabs {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       padding: 6px 24px 12px 24px;
       border-bottom: 1px solid var(--border-specular);
     }
 
     .sheet-tab {
       flex: 1;
-      min-height: 40px;
+      min-height: 38px;
       border-radius: 9999px;
       border: 1px solid var(--border-specular);
       background: rgba(255, 255, 255, 0.03);
       color: var(--text-secondary);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -764,7 +905,7 @@
       </p>
       <form id="login-form">
         <label class="field-label" for="pin-input">Host Access PIN</label>
-        <input id="pin-input" class="text-field" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Enter 4-Digit Host PIN" required />
+        <input id="pin-input" class="text-field" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Enter 4-Digit Host PIN (1631)" required />
 
         <label class="field-label" for="gemini-key-input">Gemini API Key (Optional — Auto-Bound on Host)</label>
         <input id="gemini-key-input" class="text-field" type="password" autocomplete="off" placeholder="Uses host ~/.gemini profile key if blank" />
@@ -798,15 +939,43 @@
         </svg>
       </button>
 
-      <button type="button" class="sync-btn" id="resync-btn" title="Sync Gemini Profile & Workspaces">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 2v6h-6"></path>
-          <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-          <path d="M3 22v-6h6"></path>
-          <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-        </svg>
-      </button>
+      <div class="nav-actions">
+        <button type="button" class="sync-btn" id="resync-btn" title="Sync Gemini Profile & Workspaces">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 2v6h-6"></path>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+            <path d="M3 22v-6h6"></path>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+          </svg>
+        </button>
+        <button type="button" class="lock-btn" id="logout-btn" title="Lock & Log Out Session">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </button>
+      </div>
     </header>
+
+    <!-- User Profile Login & Live Security Markers Bar -->
+    <div class="security-bar" id="security-bar" title="Tap to inspect Session Security & Auto-Logout Policy">
+      <div class="sec-group">
+        <span class="sec-user-badge" id="sec-user-pill">
+          <span>👤</span>
+          <span id="sec-user-label">jbb@avilo.capital</span>
+        </span>
+        <span class="sec-marker" id="sec-tls-pill">
+          <span>🛡️</span>
+          <span>TLS 1.3 · HMAC-JWT · Loopback :8787</span>
+        </span>
+      </div>
+      <div class="sec-group">
+        <span class="sec-timer-badge" id="sec-timer-pill" title="30-minute sliding inactivity auto-logout timer">
+          <span>⏱</span>
+          <span id="inactivity-countdown">30:00</span>
+        </span>
+      </div>
+    </div>
 
     <!-- Conversation & Real-Time SSE Feed -->
     <main class="stream-container" id="stream-container">
@@ -857,11 +1026,12 @@
 
   <!-- Zero-G Glass Bottom Sheet -->
   <div class="sheet-backdrop" id="sheet-backdrop"></div>
-  <section class="bottom-sheet" id="bottom-sheet" aria-label="Workspace and MCP Switcher">
+  <section class="bottom-sheet" id="bottom-sheet" aria-label="Workspace, MCP and Security Switcher">
     <div class="sheet-handle-bar"></div>
     <div class="sheet-tabs">
-      <button type="button" class="sheet-tab active" data-tab="workspaces" id="tab-btn-workspaces">Synced Workspaces</button>
-      <button type="button" class="sheet-tab" data-tab="mcps" id="tab-btn-mcps">Active MCPs &amp; GEMINI.md</button>
+      <button type="button" class="sheet-tab active" data-tab="workspaces" id="tab-btn-workspaces">Workspaces</button>
+      <button type="button" class="sheet-tab" data-tab="mcps" id="tab-btn-mcps">MCPs &amp; Rules</button>
+      <button type="button" class="sheet-tab" data-tab="security" id="tab-btn-security">Security &amp; Profile</button>
     </div>
     <div class="sheet-content" id="sheet-content"></div>
   </section>
@@ -870,6 +1040,8 @@
     (function () {
       const TOKEN_KEY = 'ag_remote_jwt';
       const ACTIVE_PROJECT_KEY = 'ag_remote_active_project';
+      const LAST_ACTIVE_KEY = 'ag_remote_last_activity_ts';
+      const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes (1800s)
 
       let authToken = localStorage.getItem(TOKEN_KEY) || '';
       let profileData = null;
@@ -877,6 +1049,7 @@
       let activeSheetTab = 'workspaces';
       let messagesByProject = {};
       let sseSource = null;
+      let lastActivityTs = Number(localStorage.getItem(LAST_ACTIVE_KEY) || Date.now());
 
       // DOM Elements
       const loginScreen = document.getElementById('login-screen');
@@ -891,6 +1064,11 @@
       const activeGitBranchEl = document.getElementById('active-git-branch');
       const activeMcpCountEl = document.getElementById('active-mcp-count');
       const resyncBtn = document.getElementById('resync-btn');
+      const logoutBtn = document.getElementById('logout-btn');
+
+      const securityBar = document.getElementById('security-bar');
+      const secUserLabel = document.getElementById('sec-user-label');
+      const inactivityCountdownEl = document.getElementById('inactivity-countdown');
 
       const streamContainer = document.getElementById('stream-container');
       const messagesList = document.getElementById('messages-list');
@@ -907,6 +1085,7 @@
       const bottomSheet = document.getElementById('bottom-sheet');
       const tabBtnWorkspaces = document.getElementById('tab-btn-workspaces');
       const tabBtnMcps = document.getElementById('tab-btn-mcps');
+      const tabBtnSecurity = document.getElementById('tab-btn-security');
       const sheetContent = document.getElementById('sheet-content');
 
       // 1. Brave iOS visualViewport Keyboard & Chrome Bar Pinning
@@ -923,8 +1102,64 @@
       }
       window.addEventListener('resize', syncVisualViewport);
 
-      // 2. API Helper (Strict Same-Origin + Subpath-Relative + Bearer Fallback)
+      // 2. 30-Minute Sliding Inactivity Auto-Logout Engine
+      function recordUserActivity() {
+        lastActivityTs = Date.now();
+        localStorage.setItem(LAST_ACTIVE_KEY, String(lastActivityTs));
+      }
+
+      ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(evtName => {
+        window.addEventListener(evtName, recordUserActivity, { passive: true });
+      });
+
+      async function performLogout(reasonMessage) {
+        try {
+          await fetch('./api/auth/logout', {
+            method: 'POST',
+            headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {},
+            credentials: 'same-origin'
+          });
+        } catch (e) {}
+        authToken = '';
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(LAST_ACTIVE_KEY);
+        if (sseSource) {
+          try { sseSource.close(); } catch (e) {}
+          sseSource = null;
+        }
+        closeSheet();
+        if (reasonMessage) {
+          loginError.textContent = reasonMessage;
+          loginError.style.display = 'block';
+        } else {
+          loginError.style.display = 'none';
+        }
+        pinInput.value = '';
+        loginScreen.classList.add('visible');
+      }
+
+      logoutBtn.addEventListener('click', () => {
+        performLogout('Session locked manually. Enter Host PIN to reconnect.');
+      });
+
+      setInterval(() => {
+        if (loginScreen.classList.contains('visible')) return;
+        const elapsed = Date.now() - lastActivityTs;
+        const remainingMs = Math.max(0, INACTIVITY_LIMIT_MS - elapsed);
+        const totalSec = Math.floor(remainingMs / 1000);
+        const mins = String(Math.floor(totalSec / 60)).padStart(2, '0');
+        const secs = String(totalSec % 60).padStart(2, '0');
+        if (inactivityCountdownEl) {
+          inactivityCountdownEl.textContent = mins + ':' + secs;
+        }
+        if (remainingMs <= 0) {
+          performLogout('Logged out automatically after 30 minutes of inactivity.');
+        }
+      }, 1000);
+
+      // 3. API Helper (Strict Same-Origin + Subpath-Relative + Bearer Fallback)
       async function apiFetch(relPath, options = {}) {
+        recordUserActivity();
         const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
         if (authToken) {
           headers['Authorization'] = 'Bearer ' + authToken;
@@ -933,6 +1168,9 @@
           headers,
           credentials: 'same-origin'
         }));
+        if (res.status === 401 && !relPath.includes('/api/auth/login')) {
+          performLogout('Session expired or locked after 30m inactivity.');
+        }
         return res;
       }
 
@@ -944,18 +1182,74 @@
           .replace(/"/g, '&quot;');
       }
 
+      // Improved Markdown Renderer supporting * and - bullets, --- dividers, headers, and code blocks
       function renderMarkdownLite(md) {
-        let html = escapeHtml(md);
-        html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(/^### (.+)$/gm, '<div style="font-weight:700; font-size:15px; margin:8px 0 4px 0; color:#F8FAFC;">$1</div>');
-        html = html.replace(/^- (.+)$/gm, '<div style="padding-left:10px; margin:3px 0;">• $1</div>');
-        html = html.replace(/\n\n/g, '</p><p>');
-        return '<p>' + html + '</p>';
+        const raw = String(md || '');
+        const codeBlocks = [];
+        const withPlaceholders = raw.replace(/```([\s\S]*?)```/g, (_m, code) => {
+          const idx = codeBlocks.length;
+          codeBlocks.push('<pre><code>' + escapeHtml(code.trim()) + '</code></pre>');
+          return '@@CODEBLOCK_' + idx + '@@';
+        });
+
+        const lines = withPlaceholders.split('\n');
+        const out = [];
+
+        for (let line of lines) {
+          // If Gemini emitted multiple inline "* **Key**: Val * **Key2**: Val2" on one line, split them cleanly
+          if (/\s+\*\s+\*\*/.test(line)) {
+            const subParts = line.split(/\s+(?=\*\s+\*\*)/);
+            for (const sp of subParts) {
+              out.push(formatSingleLine(sp));
+            }
+          } else {
+            out.push(formatSingleLine(line));
+          }
+        }
+
+        let joined = out.join('');
+        codeBlocks.forEach((block, idx) => {
+          joined = joined.replace('@@CODEBLOCK_' + idx + '@@', block);
+        });
+        return joined;
       }
 
-      // 3. Render Top Bar, Messages, Chips & Bottom Sheet
+      function formatInlineStyles(escaped) {
+        return escaped
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      }
+
+      function formatSingleLine(line) {
+        const trimmed = line.trim();
+        if (!trimmed) return '<div style="height:6px;"></div>';
+        if (/^@@CODEBLOCK_\d+@@$/.test(trimmed)) return trimmed;
+        if (/^---+$/.test(trimmed)) return '<hr class="md-hr" />';
+
+        const escaped = escapeHtml(trimmed);
+        if (/^###\s+(.+)$/.test(escaped)) {
+          return '<div style="font-weight:700; font-size:15px; margin:10px 0 4px 0; color:#F8FAFC;">' +
+            formatInlineStyles(escaped.replace(/^###\s+/, '')) + '</div>';
+        }
+        if (/^##\s+(.+)$/.test(escaped)) {
+          return '<div style="font-weight:700; font-size:15.5px; margin:10px 0 4px 0; color:#F8FAFC;">' +
+            formatInlineStyles(escaped.replace(/^##\s+/, '')) + '</div>';
+        }
+        if (/^[-*]\s+(.+)$/.test(escaped)) {
+          return '<div class="md-bullet"><span style="color:#38BDF8; flex-shrink:0;">•</span><span>' +
+            formatInlineStyles(escaped.replace(/^[-*]\s+/, '')) + '</span></div>';
+        }
+        if (/^\d+\.\s+(.+)$/.test(escaped)) {
+          const numMatch = escaped.match(/^(\d+\.)\s+(.+)$/);
+          if (numMatch) {
+            return '<div class="md-bullet"><span style="color:#A855F7; font-family:var(--font-mono); font-size:12px; flex-shrink:0;">' +
+              numMatch[1] + '</span><span>' + formatInlineStyles(numMatch[2]) + '</span></div>';
+          }
+        }
+        return '<p style="margin:0 0 6px 0;">' + formatInlineStyles(escaped) + '</p>';
+      }
+
+      // 4. Render Top Bar, Security Strip, Messages, Chips & Bottom Sheet
       function getActiveProject() {
         if (!profileData || !profileData.projects || !profileData.projects.length) return null;
         return profileData.projects.find(p => p.id === activeProjectId) || profileData.projects[0];
@@ -971,6 +1265,11 @@
         activeGitBranchEl.textContent = 'git:' + proj.gitBranch;
         const mcpCount = (profileData && profileData.mcpServers) ? profileData.mcpServers.length : 0;
         activeMcpCountEl.textContent = mcpCount + ' MCPs';
+
+        if (profileData && profileData.profile && secUserLabel) {
+          secUserLabel.textContent =
+            profileData.profile.user + ' · ' + profileData.profile.hostname;
+        }
       }
 
       function renderChips() {
@@ -991,6 +1290,41 @@
         });
       }
 
+      async function handleRollbackClick(messageId) {
+        if (!messageId) return;
+        hookTagLabel.textContent = 'ROLLBACK';
+        hookSummaryText.textContent = 'Reverting workspace checkpoint & conversation state...';
+        try {
+          const res = await apiFetch(
+            './api/projects/' + encodeURIComponent(activeProjectId) + '/rollback',
+            {
+              method: 'POST',
+              body: JSON.stringify({ messageId })
+            }
+          );
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.messages) {
+            messagesByProject[activeProjectId] = data.messages;
+            renderMessages();
+          }
+          if (data.rolledBackPrompt) {
+            promptInput.value = data.rolledBackPrompt;
+            autoResizeTextarea();
+            promptInput.focus();
+          }
+          const filesNote =
+            Array.isArray(data.restoredFiles) && data.restoredFiles.length > 0
+              ? ' (Restored: ' + data.restoredFiles.join(', ') + ')'
+              : '';
+          hookTagLabel.textContent = 'REVERTED';
+          hookSummaryText.textContent =
+            'Rolled back ' + (data.removedMessageCount || 1) + ' message(s)' + filesNote;
+        } catch (err) {
+          console.error('Rollback failed:', err);
+        }
+      }
+
       function renderMessages() {
         const list = messagesByProject[activeProjectId] || [];
         if (list.length === 0) {
@@ -999,7 +1333,7 @@
           return;
         }
         emptyWatermark.style.display = 'none';
-        messagesList.innerHTML = list.map(msg => {
+        messagesList.innerHTML = list.map((msg, idx) => {
           const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
           const roleLabel = msg.role === 'user' ? 'YOU · BRAVE iOS' : ('ANTIGRAVITY · ' + (msg.model || 'GEMINI'));
           const traces = Array.isArray(msg.toolEvents) && msg.toolEvents.length > 0
@@ -1011,6 +1345,29 @@
                 </div>`
               )).join('')}</div>`
             : '';
+
+          // Show Antigravity Rollback Bar on every user prompt or assistant turn after the welcome card
+          const isWelcome = String(msg.id || '').startsWith('welcome-') || idx === 0;
+          const cp = msg.checkpoint;
+          const modFiles = (cp && Array.isArray(cp.modifiedFiles)) ? cp.modifiedFiles : [];
+          const cpLabel = cp && cp.id ? ('#' + cp.id + ' · ' + (cp.gitHead || 'HEAD')) : 'Checkpoint Ready';
+          const filesBadge = modFiles.length > 0
+            ? `<span style="color:#6EE7B7;">(${modFiles.length} file${modFiles.length > 1 ? 's' : ''} snapshotted)</span>`
+            : '';
+
+          const rollbackHtml = !isWelcome
+            ? `<div class="rollback-bar">
+                <div class="checkpoint-meta">
+                  <span>⚓ ${escapeHtml(cpLabel)}</span>
+                  ${filesBadge}
+                </div>
+                <button type="button" class="rollback-btn" data-rollback-id="${escapeHtml(msg.id)}" title="Revert workspace files and conversation back to before this step">
+                  <span>↺</span>
+                  <span>Rollback to here</span>
+                </button>
+              </div>`
+            : '';
+
           return `
             <article class="msg-card ${escapeHtml(msg.role)}" id="msg-${escapeHtml(msg.id)}">
               <div class="msg-header">
@@ -1019,9 +1376,19 @@
               </div>
               <div class="msg-body">${renderMarkdownLite(msg.content || '...')}</div>
               ${traces}
+              ${rollbackHtml}
             </article>
           `;
         }).join('');
+
+        messagesList.querySelectorAll('.rollback-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetId = btn.getAttribute('data-rollback-id');
+            if (targetId) handleRollbackClick(targetId);
+          });
+        });
+
         streamContainer.scrollTop = streamContainer.scrollHeight;
       }
 
@@ -1062,7 +1429,7 @@
               }
             });
           });
-        } else {
+        } else if (activeSheetTab === 'mcps') {
           const mcpHtml = profileData.mcpServers.map(m => `
             <div class="mcp-item">
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
@@ -1092,11 +1459,72 @@
             </div>
           `;
           sheetContent.innerHTML = mcpHtml + rulesHtml;
+        } else {
+          const sec = profileData.security || {};
+          const prof = profileData.profile || {};
+          sheetContent.innerHTML = `
+            <div class="mcp-item" style="border-color:rgba(56,189,248,0.4);">
+              <div style="font-weight:700; font-size:14px; color:#38BDF8; margin-bottom:8px;">
+                👤 Authenticated Antigravity Profile
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0; margin-bottom:5px;">
+                • <strong>User Login:</strong> <code>${escapeHtml(prof.user || 'jbb@avilo.capital')}</code>
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0; margin-bottom:5px;">
+                • <strong>Host Node:</strong> <code>${escapeHtml(prof.hostname || 'mac-mighty-vertex')}</code> (Vast.ai <code>85.10.218.46:44016</code>)
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0; margin-bottom:5px;">
+                • <strong>Installation ID:</strong> <code>${escapeHtml(prof.installationId || '')}</code>
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0;">
+                • <strong>Gemini Engine:</strong> <code>${escapeHtml(prof.geminiModel || 'gemini-3.5-flash')}</code> (${prof.geminiConnected ? 'ONLINE' : 'STANDBY'})
+              </div>
+            </div>
+
+            <div class="mcp-item" style="border-color:rgba(16,185,129,0.4);">
+              <div style="font-weight:700; font-size:14px; color:#6EE7B7; margin-bottom:8px;">
+                🛡️ Security Markers &amp; Session Protection
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0; margin-bottom:5px;">
+                • <strong>Auth Verification:</strong> <code>${escapeHtml(sec.authMethod || 'Host PIN + HMAC-SHA256 JWT + HttpOnly Strict Cookie')}</code>
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0; margin-bottom:5px;">
+                • <strong>TLS &amp; Loopback Isolation:</strong> <code>${escapeHtml(sec.tlsProtection || 'Cloudflare TLS 1.3 → 127.0.0.1:8787')}</code>
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0; margin-bottom:5px;">
+                • <strong>Execution Sandbox:</strong> <code>${escapeHtml(sec.executionIsolation || 'Tier 2 Guardrails · 0B GPU VRAM')}</code>
+              </div>
+              <div style="font-size:12.5px; color:#E2E8F0; margin-bottom:10px;">
+                • <strong>Inactivity Auto-Logout:</strong> <code>30 minutes (1800s sliding window)</code>
+              </div>
+              <button type="button" class="primary-btn" id="sheet-logout-btn" style="height:40px; font-size:13px; background:linear-gradient(135deg,#E11D48,#9F1239);">
+                Lock &amp; Log Out Session Now
+              </button>
+            </div>
+          `;
+          const sheetLogoutBtn = document.getElementById('sheet-logout-btn');
+          if (sheetLogoutBtn) {
+            sheetLogoutBtn.addEventListener('click', () => {
+              performLogout('Session locked manually.');
+            });
+          }
         }
       }
 
-      function openSheet() {
+      function setSheetTab(tabName) {
+        activeSheetTab = tabName;
+        tabBtnWorkspaces.classList.toggle('active', tabName === 'workspaces');
+        tabBtnMcps.classList.toggle('active', tabName === 'mcps');
+        tabBtnSecurity.classList.toggle('active', tabName === 'security');
         renderBottomSheet();
+      }
+
+      function openSheet(defaultTab) {
+        if (defaultTab && typeof defaultTab === 'string') {
+          setSheetTab(defaultTab);
+        } else {
+          renderBottomSheet();
+        }
         sheetBackdrop.classList.add('open');
         bottomSheet.classList.add('open');
       }
@@ -1106,24 +1534,15 @@
         bottomSheet.classList.remove('open');
       }
 
-      workspacePillBtn.addEventListener('click', openSheet);
+      workspacePillBtn.addEventListener('click', () => openSheet('workspaces'));
+      securityBar.addEventListener('click', () => openSheet('security'));
       sheetBackdrop.addEventListener('click', closeSheet);
 
-      tabBtnWorkspaces.addEventListener('click', () => {
-        activeSheetTab = 'workspaces';
-        tabBtnWorkspaces.classList.add('active');
-        tabBtnMcps.classList.remove('active');
-        renderBottomSheet();
-      });
+      tabBtnWorkspaces.addEventListener('click', () => setSheetTab('workspaces'));
+      tabBtnMcps.addEventListener('click', () => setSheetTab('mcps'));
+      tabBtnSecurity.addEventListener('click', () => setSheetTab('security'));
 
-      tabBtnMcps.addEventListener('click', () => {
-        activeSheetTab = 'mcps';
-        tabBtnMcps.classList.add('active');
-        tabBtnWorkspaces.classList.remove('active');
-        renderBottomSheet();
-      });
-
-      // 4. Profile Sync Hydration (`GET ./api/profile/sync`)
+      // 5. Profile Sync Hydration (`GET ./api/profile/sync`)
       async function syncProfile() {
         try {
           const res = await apiFetch('./api/profile/sync');
@@ -1148,7 +1567,7 @@
         }
       }
 
-      // 5. SSE Stream & iOS Foreground Recovery
+      // 6. SSE Stream & iOS Foreground Recovery
       function connectSse() {
         if (sseSource) {
           try { sseSource.close(); } catch (e) {}
@@ -1209,11 +1628,25 @@
             if (data.projectId === activeProjectId) renderMessages();
           } catch (err) {}
         });
+
+        sseSource.addEventListener('rollback_completed', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.projectId && Array.isArray(data.messages)) {
+              messagesByProject[data.projectId] = data.messages;
+              if (data.projectId === activeProjectId) renderMessages();
+            }
+          } catch (err) {}
+        });
       }
 
       // iOS Background Suspension Recovery
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
+          if (Date.now() - lastActivityTs >= INACTIVITY_LIMIT_MS) {
+            performLogout('Logged out automatically after 30 minutes of inactivity.');
+            return;
+          }
           syncProfile();
           connectSse();
         }
@@ -1229,7 +1662,7 @@
         syncProfile();
       });
 
-      // 6. Voice-First Composer Auto-Expand & Dispatch
+      // 7. Voice-First Composer Auto-Expand & Dispatch
       function autoResizeTextarea() {
         promptInput.style.height = 'auto';
         promptInput.style.height = Math.min(promptInput.scrollHeight, 112) + 'px';
@@ -1286,7 +1719,7 @@
 
       sendBtn.addEventListener('click', dispatchPrompt);
 
-      // 7. Login Form Submission
+      // 8. Login Form Submission
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         loginError.style.display = 'none';
@@ -1308,6 +1741,7 @@
             authToken = data.token;
             localStorage.setItem(TOKEN_KEY, authToken);
           }
+          recordUserActivity();
           await syncProfile();
           connectSse();
         } catch (err) {
@@ -1317,9 +1751,13 @@
       });
 
       // Initial Bootstrap
-      syncProfile().then((ok) => {
-        if (ok) connectSse();
-      });
+      if (Date.now() - lastActivityTs >= INACTIVITY_LIMIT_MS && authToken) {
+        performLogout('Logged out automatically after 30 minutes of inactivity.');
+      } else {
+        syncProfile().then((ok) => {
+          if (ok) connectSse();
+        });
+      }
     })();
   </script>
 </body>
