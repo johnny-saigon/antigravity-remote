@@ -28,7 +28,7 @@ const HOST_PIN = process.env.HOST_PIN || '4419';
 const SESSION_SECRET =
   process.env.SESSION_SECRET || 'ag-remote-zero-g-secret-85-10-218-46-vast';
 let runtimeGeminiKey = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
 // Programmatically generate official Antigravity SVG & Retina PNG icons on startup
 ensureBrandingAssets(PUBLIC_DIR);

@@ -47,7 +47,7 @@ const DEFAULT_STATE: PersistedState = {
         role: 'assistant',
         content:
           '**Antigravity Remote v1.0** online (`127.0.0.1:8787`).\n\nZero-Config Gemini Profile Hydration has automatically discovered **4 colocated workspaces** (`RemoveBackGround`, `BinaryDay`, `SnapCal`, `AntigravityRemote`), **7 MCP servers** (`Vast.ai`, `Cloudflare`, `OVH`, `GitHub`, `Stitch`, `Resend`, `Stripe`), and your **3-Tier Memory Hierarchy** (`~/.gemini/GEMINI.md` + `.agents/rules/infra.md`).\n\nTap any Slash Chip below or dictate a voice instruction using the iOS microphone.',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         timestamp: new Date().toISOString(),
         toolEvents: [
           {
@@ -69,7 +69,7 @@ const DEFAULT_STATE: PersistedState = {
         role: 'assistant',
         content:
           '**RemoveBackGround** workspace synced (`/workspace` • `https://removeback.gd`).\n\n- **GPU Allocation**: 100% Dedicated NVIDIA RTX 4060 Ti (`16 GB VRAM` on `cuda:0`)\n- **Daemon**: `model_server` (`127.0.0.1:7861`)\n- **Isolation**: PostgreSQL `removebg` • Redis `DB 2` • S3 `removebg-private`',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         timestamp: new Date().toISOString(),
       },
     ],
@@ -80,7 +80,7 @@ const DEFAULT_STATE: PersistedState = {
         role: 'assistant',
         content:
           '**BinaryDay** workspace synced (`/workspace/binaryday` • `https://binaryday.app`).\n\n- **Daemon**: `binaryday` (`127.0.0.1:4001`)\n- **Isolation**: PostgreSQL `binaryday` • Redis `DB 0` • `0 Bytes GPU VRAM`\n- **Edge Ingress**: Cloudflare Origin Rule (`44190`) + Pooled Caddy',
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         timestamp: new Date().toISOString(),
       },
     ],
