@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#07080C" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Antigravity" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="manifest" href="./manifest.json" />
+  <title>Antigravity Remote — Mobile Companion</title>
+  <style>
+    :root {
+      --bg-void: #07080C;
+      --glass-surface: rgba(15, 17, 26, 0.85);
+      --glass-elevated: rgba(22, 25, 38, 0.92);
+      --border-specular: #1E2235;
+      --border-highlight: rgba(255, 255, 255, 0.08);
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --accent-violet: #7C3AED;
+      --accent-indigo: #4F46E5;
+      --accent-cyan: #38BDF8;
+      --prism-gradient: linear-gradient(135deg, #7C3AED 0%, #4F46E5 50%, #38BDF8 100%);
+      --status-idle: #38BDF8;
+      --status-running: #A855F7;
+      --status-completed: #10B981;
+      --status-blocked: #F43F5E;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+      --vvh: 100dvh;
+      --vvo: 0px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior-y: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background-color: var(--bg-void);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* App Shell pinned to visualViewport for Brave iOS keyboard & address bar resilience */
+    #app-shell {
+      position: fixed;
+      left: 0;
+      top: var(--vvo);
+      width: 100%;
+      height: var(--vvh);
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(ellipse 90% 45% at 50% -5%, rgba(124, 58, 237, 0.14) 0%, rgba(79, 70, 229, 0.07) 45%, rgba(56, 189, 248, 0.03) 75%, transparent 100%),
+        var(--bg-void);
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    /* Zero-G Glass Utility */
+    .zero-g-glass {
+      background: var(--glass-surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-specular);
+      box-shadow: inset 0 1px 0 0 var(--border-highlight);
+    }
+
+    /* Top Navigation Bar */
+    .top-nav {
+      flex-shrink: 0;
+      padding-top: calc(var(--safe-top) + 8px);
+      padding-bottom: 10px;
+      padding-left: 24px;
+      padding-right: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: rgba(7, 8, 12, 0.82);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-specular);
+      box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+      z-index: 20;
+    }
+
+    .workspace-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px 6px 8px;
+      border-radius: 9999px;
+      background: var(--glass-surface);
+      border: 1px solid var(--border-specular);
+      box-shadow: inset 0 1px 0 0 var(--border-highlight), 0 4px 16px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: transform 0.14s ease, border-color 0.2s ease;
+      min-height: 44px;
+      max-width: calc(100% - 54px);
+    }
+
+    .workspace-pill:active {
+      transform: scale(0.96);
+      border-color: var(--accent-cyan);
+    }
+
+    .brand-logo-wrap {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pill-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .pill-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill-project-name {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pill-sub-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 1px;
+    }
+
+    .mono-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.1);
+      padding: 1px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      white-space: nowrap;
+    }
+
+    .mcp-count-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #C4B5FD;
+      background: rgba(124, 58, 237, 0.16);
+      padding: 1px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      white-space: nowrap;
+    }
+
+    /* Orbital Status Dot */
+    .orbital-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .orbital-dot.Idle {
+      background: var(--status-idle);
+      box-shadow: 0 0 8px var(--status-idle);
+    }
+
+    .orbital-dot.Running {
+      background: var(--status-running);
+      box-shadow: 0 0 12px var(--status-running);
+      animation: orbitalPulse 1.2s infinite ease-in-out;
+    }
+
+    .orbital-dot.Completed {
+      background: var(--status-completed);
+      box-shadow: 0 0 8px var(--status-completed);
+    }
+
+    .orbital-dot.Blocked {
+      background: var(--status-blocked);
+      box-shadow: 0 0 10px var(--status-blocked);
+    }
+
+    @keyframes orbitalPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.45); opacity: 0.65; }
+    }
+
+    .sync-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 9999px;
+      background: var(--glass-surface);
+      border: 1px solid var(--border-specular);
+      box-shadow: inset 0 1px 0 0 var(--border-highlight);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.14s ease, color 0.2s ease;
+    }
+
+    .sync-btn:active {
+      transform: scale(0.92);
+      color: var(--accent-cyan);
+    }
+
+    /* Main Stream / Conversation Area */
+    .stream-container {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      padding: 16px 24px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+    }
+
+    /* Watermark Empty State */
+    .empty-watermark {
+      margin: auto;
+      text-align: center;
+      max-width: 280px;
+      padding: 24px 16px;
+      opacity: 0.88;
+    }
+
+    .empty-watermark .watermark-logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 14px auto;
+      filter: drop-shadow(0 0 24px rgba(124, 58, 237, 0.35));
+    }
+
+    /* Live Hook Telemetry Strip */
+    .hook-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: rgba(15, 17, 26, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      overflow: hidden;
+    }
+
+    .hook-strip .hook-tag {
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-weight: 600;
+      font-size: 10px;
+      text-transform: uppercase;
+      background: rgba(124, 58, 237, 0.2);
+      color: #DDD6FE;
+      flex-shrink: 0;
+    }
+
+    .hook-strip .hook-summary {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #E2E8F0;
+    }
+
+    /* Message Cards */
+    .msg-card {
+      padding: 14px 16px;
+      border-radius: 16px;
+      line-height: 1.5;
+      font-size: 14.5px;
+      word-break: break-word;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .msg-card.user {
+      align-self: flex-end;
+      max-width: 88%;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.28) 0%, rgba(79, 70, 229, 0.26) 60%, rgba(56, 189, 248, 0.2) 100%);
+      border: 1px solid rgba(124, 58, 237, 0.45);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+    }
+
+    .msg-card.assistant {
+      align-self: stretch;
+      background: var(--glass-surface);
+      border: 1px solid var(--border-specular);
+      box-shadow: inset 0 1px 0 0 var(--border-highlight);
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .msg-body p {
+      margin: 0 0 8px 0;
+    }
+    .msg-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .msg-body code {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      background: rgba(255, 255, 255, 0.07);
+      padding: 1.5px 5px;
+      border-radius: 5px;
+      color: #7DD3FC;
+    }
+
+    .msg-body pre {
+      background: #050609;
+      border: 1px solid #1E2235;
+      border-radius: 10px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #E2E8F0;
+      margin: 8px 0;
+    }
+
+    .tool-trace-list {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .tool-trace-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Voice-First Composer Bar */
+    .composer-dock {
+      flex-shrink: 0;
+      background: rgba(10, 12, 18, 0.92);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-top: 1px solid var(--border-specular);
+      box-shadow: inset 0 1px 0 0 var(--border-highlight);
+      padding-top: 8px;
+      padding-bottom: var(--safe-bottom);
+      padding-left: 24px;
+      padding-right: 24px;
+      z-index: 20;
+    }
+
+    /* Slash / Prompt Chips Row (inset 24px from screen edges to prevent Brave back/forward gesture) */
+    .chips-scroll {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .chips-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .prompt-chip {
+      flex-shrink: 0;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 9999px;
+      background: rgba(24, 27, 42, 0.9);
+      border: 1px solid #262B44;
+      color: #CBD5E1;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .prompt-chip:active {
+      transform: scale(0.94);
+      border-color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.15);
+      color: #FFFFFF;
+    }
+
+    .composer-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .textarea-wrap {
+      flex: 1;
+      position: relative;
+      background: rgba(18, 21, 32, 0.95);
+      border: 1px solid #262B44;
+      border-radius: 18px;
+      padding: 8px 54px 8px 14px;
+      transition: border-color 0.2s ease;
+    }
+
+    .textarea-wrap:focus-within {
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+    }
+
+    /* CRITICAL Brave iOS Requirement: 16px (1rem) font-size to prevent WebKit auto-zoom on focus */
+    #prompt-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.4;
+      resize: none;
+      max-height: 112px;
+      min-height: 24px;
+      padding: 0;
+      margin: 0;
+      display: block;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    #prompt-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .clear-btn {
+      position: absolute;
+      right: 8px;
+      bottom: 7px;
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .clear-btn.visible {
+      display: inline-flex;
+    }
+
+    .clear-btn:active {
+      transform: scale(0.92);
+      background: rgba(244, 63, 94, 0.2);
+      color: #FDA4AF;
+    }
+
+    .send-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 9999px;
+      border: none;
+      background: var(--prism-gradient);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+      transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease;
+    }
+
+    .send-btn:active {
+      transform: scale(0.91);
+      opacity: 0.9;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    /* Zero-G Glass Bottom Sheet (Project & MCP Switcher) */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 4, 7, 0.72);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+      z-index: 40;
+    }
+
+    .sheet-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .bottom-sheet {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 82dvh;
+      background: rgba(13, 15, 24, 0.94);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-top: 1px solid #282E46;
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 -16px 48px rgba(0, 0, 0, 0.75);
+      border-radius: 24px 24px 0 0;
+      transform: translate3d(0, 105%, 0);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      display: flex;
+      flex-direction: column;
+      padding-bottom: var(--safe-bottom);
+      z-index: 50;
+    }
+
+    .bottom-sheet.open {
+      transform: translate3d(0, 0, 0);
+    }
+
+    .sheet-handle-bar {
+      width: 40px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+      margin: 10px auto 8px auto;
+    }
+
+    .sheet-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 6px 24px 12px 24px;
+      border-bottom: 1px solid var(--border-specular);
+    }
+
+    .sheet-tab {
+      flex: 1;
+      min-height: 40px;
+      border-radius: 9999px;
+      border: 1px solid var(--border-specular);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .sheet-tab.active {
+      background: var(--prism-gradient);
+      color: #FFFFFF;
+      border-color: transparent;
+      box-shadow: 0 2px 12px rgba(79, 70, 229, 0.4);
+    }
+
+    .sheet-content {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .project-item, .mcp-item {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(20, 23, 36, 0.85);
+      border: 1px solid var(--border-specular);
+      box-shadow: inset 0 1px 0 0 var(--border-highlight);
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.15s ease;
+    }
+
+    .project-item:active {
+      transform: scale(0.98);
+    }
+
+    .project-item.selected {
+      border-color: var(--accent-cyan);
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.14) 0%, rgba(56, 189, 248, 0.08) 100%);
+    }
+
+    /* Login Hero Overlay Screen */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(124, 58, 237, 0.22), rgba(56, 189, 248, 0.06) 45%, transparent 70%),
+        var(--bg-void);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px) 24px;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    #login-screen.visible {
+      display: flex;
+    }
+
+    .login-card {
+      max-width: 400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 22px;
+      border-radius: 24px;
+    }
+
+    .hero-logo {
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 16px auto;
+      filter: drop-shadow(0 8px 28px rgba(124, 58, 237, 0.45));
+    }
+
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .text-field {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      border-radius: 14px;
+      background: rgba(10, 12, 18, 0.9);
+      border: 1px solid #262B44;
+      color: var(--text-primary);
+      font-size: 16px; /* Prevents iOS zoom */
+      font-family: var(--font-mono);
+      outline: none;
+      margin-bottom: 14px;
+    }
+
+    .text-field:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .primary-btn {
+      width: 100%;
+      height: 50px;
+      border-radius: 9999px;
+      border: none;
+      background: var(--prism-gradient);
+      color: #FFFFFF;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+      transition: transform 0.12s ease;
+    }
+
+    .primary-btn:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body>
+  <!-- Reusable Official Antigravity SVG Definition -->
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="antigravity-glyph" viewBox="0 0 256 256">
+      <defs>
+        <linearGradient id="ag-prism-grad" x1="24" y1="20" x2="232" y2="236" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7C3AED" />
+          <stop offset="50%" stop-color="#4F46E5" />
+          <stop offset="100%" stop-color="#38BDF8" />
+        </linearGradient>
+        <linearGradient id="ag-orbit-grad" x1="16" y1="148" x2="240" y2="108" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.95" />
+          <stop offset="50%" stop-color="#38BDF8" stop-opacity="0.95" />
+          <stop offset="100%" stop-color="#4F46E5" stop-opacity="0.25" />
+        </linearGradient>
+      </defs>
+      <path d="M 30 146 A 102 34 0 0 1 226 110" stroke="url(#ag-orbit-grad)" stroke-width="6" stroke-linecap="round" stroke-dasharray="6 8" opacity="0.45" fill="none" />
+      <path d="M 128 28 L 210 204 L 171 204 L 128 108 L 85 204 L 46 204 Z" fill="url(#ag-prism-grad)" />
+      <path d="M 128 128 L 154 184 L 102 184 Z" fill="url(#ag-prism-grad)" opacity="0.9" />
+      <path d="M 128 28 L 168 114 L 128 96 L 88 114 Z" fill="#FFFFFF" opacity="0.2" />
+      <path d="M 226 110 A 102 34 -12 0 1 30 146" stroke="url(#ag-orbit-grad)" stroke-width="7.5" stroke-linecap="round" fill="none" />
+      <circle cx="128" cy="18" r="5.5" fill="#38BDF8" />
+      <circle cx="218" cy="116" r="4.5" fill="#38BDF8" />
+      <circle cx="38" cy="142" r="4" fill="#7C3AED" />
+    </symbol>
+  </svg>
+
+  <!-- Login Hero Screen -->
+  <div id="login-screen">
+    <div class="login-card zero-g-glass">
+      <div class="hero-logo">
+        <svg width="100%" height="100%"><use href="#antigravity-glyph"></use></svg>
+      </div>
+      <h1 style="margin:0 0 6px 0; text-align:center; font-size:22px; font-weight:700; letter-spacing:-0.02em;">Antigravity Remote</h1>
+      <p style="margin:0 0 20px 0; text-align:center; font-size:13px; color:var(--text-secondary); line-height:1.45;">
+        Zero-Config Gemini Profile Sync &amp; Colocated Vast.ai Workspace Companion for Brave iOS
+      </p>
+      <form id="login-form">
+        <label class="field-label" for="pin-input">Host Access PIN</label>
+        <input id="pin-input" class="text-field" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Enter Host PIN (e.g. 4419)" required />
+
+        <label class="field-label" for="gemini-key-input">Gemini API Key (Optional — Auto-Bound on Host)</label>
+        <input id="gemini-key-input" class="text-field" type="password" autocomplete="off" placeholder="Uses host ~/.gemini profile key if blank" />
+
+        <div id="login-error" style="color:#FDA4AF; font-size:12.5px; margin-bottom:12px; display:none;"></div>
+        <button type="submit" class="primary-btn" id="login-submit-btn">Hydrate Gemini Profile &amp; Connect</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App Shell -->
+  <div id="app-shell">
+    <!-- Top Bar with Persistent Antigravity Logo + Workspace Pill -->
+    <header class="top-nav">
+      <button type="button" class="workspace-pill" id="workspace-pill-btn" aria-label="Switch Workspace or View MCPs">
+        <div class="brand-logo-wrap">
+          <svg width="28" height="28"><use href="#antigravity-glyph"></use></svg>
+        </div>
+        <div class="pill-meta">
+          <div class="pill-title-row">
+            <span class="pill-project-name" id="active-project-name">AntigravityRemote</span>
+            <span class="orbital-dot Idle" id="active-orbital-dot"></span>
+          </div>
+          <div class="pill-sub-row">
+            <span class="mono-badge" id="active-git-branch">git:main</span>
+            <span class="mcp-count-badge" id="active-mcp-count">7 MCPs</span>
+          </div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px; flex-shrink:0;">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+
+      <button type="button" class="sync-btn" id="resync-btn" title="Sync Gemini Profile & Workspaces">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 2v6h-6"></path>
+          <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+          <path d="M3 22v-6h6"></path>
+          <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Conversation & Real-Time SSE Feed -->
+    <main class="stream-container" id="stream-container">
+      <!-- Live Hook Strip -->
+      <div class="hook-strip" id="live-hook-strip">
+        <span class="hook-tag" id="hook-tag-label">SYNCED</span>
+        <span class="hook-summary" id="hook-summary-text">~/.gemini/GEMINI.md • Vast.ai (85.10.218.46:44016)</span>
+      </div>
+
+      <!-- Messages List -->
+      <div id="messages-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+      <!-- Empty State Watermark -->
+      <div class="empty-watermark" id="empty-watermark" style="display:none;">
+        <div class="watermark-logo">
+          <svg width="100%" height="100%"><use href="#antigravity-glyph"></use></svg>
+        </div>
+        <div style="font-size:15px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">Zero-G Workspace Ready</div>
+        <div style="font-size:12.5px; color:var(--text-secondary);">Dictate a voice prompt or tap a hydrated Gemini Slash Chip below.</div>
+      </div>
+    </main>
+
+    <!-- Voice-First Composer Dock -->
+    <footer class="composer-dock">
+      <div class="chips-scroll" id="chips-container"></div>
+      <div class="composer-row">
+        <div class="textarea-wrap">
+          <textarea
+            id="prompt-input"
+            rows="1"
+            placeholder="Dictate or type instruction for Antigravity..."
+            autocorrect="on"
+            autocapitalize="sentences"
+            spellcheck="true"
+            enterkeyhint="send"
+          ></textarea>
+          <button type="button" class="clear-btn" id="clear-input-btn">Clear</button>
+        </div>
+        <button type="button" class="send-btn" id="send-btn" aria-label="Dispatch Instruction">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Zero-G Glass Bottom Sheet -->
+  <div class="sheet-backdrop" id="sheet-backdrop"></div>
+  <section class="bottom-sheet" id="bottom-sheet" aria-label="Workspace and MCP Switcher">
+    <div class="sheet-handle-bar"></div>
+    <div class="sheet-tabs">
+      <button type="button" class="sheet-tab active" data-tab="workspaces" id="tab-btn-workspaces">Synced Workspaces</button>
+      <button type="button" class="sheet-tab" data-tab="mcps" id="tab-btn-mcps">Active MCPs &amp; GEMINI.md</button>
+    </div>
+    <div class="sheet-content" id="sheet-content"></div>
+  </section>
+
+  <script>
+    (function () {
+      const TOKEN_KEY = 'ag_remote_jwt';
+      const ACTIVE_PROJECT_KEY = 'ag_remote_active_project';
+
+      let authToken = localStorage.getItem(TOKEN_KEY) || '';
+      let profileData = null;
+      let activeProjectId = localStorage.getItem(ACTIVE_PROJECT_KEY) || 'antigravity-remote';
+      let activeSheetTab = 'workspaces';
+      let messagesByProject = {};
+      let sseSource = null;
+
+      // DOM Elements
+      const loginScreen = document.getElementById('login-screen');
+      const loginForm = document.getElementById('login-form');
+      const pinInput = document.getElementById('pin-input');
+      const geminiKeyInput = document.getElementById('gemini-key-input');
+      const loginError = document.getElementById('login-error');
+
+      const workspacePillBtn = document.getElementById('workspace-pill-btn');
+      const activeProjectNameEl = document.getElementById('active-project-name');
+      const activeOrbitalDotEl = document.getElementById('active-orbital-dot');
+      const activeGitBranchEl = document.getElementById('active-git-branch');
+      const activeMcpCountEl = document.getElementById('active-mcp-count');
+      const resyncBtn = document.getElementById('resync-btn');
+
+      const streamContainer = document.getElementById('stream-container');
+      const messagesList = document.getElementById('messages-list');
+      const emptyWatermark = document.getElementById('empty-watermark');
+      const hookTagLabel = document.getElementById('hook-tag-label');
+      const hookSummaryText = document.getElementById('hook-summary-text');
+
+      const chipsContainer = document.getElementById('chips-container');
+      const promptInput = document.getElementById('prompt-input');
+      const clearInputBtn = document.getElementById('clear-input-btn');
+      const sendBtn = document.getElementById('send-btn');
+
+      const sheetBackdrop = document.getElementById('sheet-backdrop');
+      const bottomSheet = document.getElementById('bottom-sheet');
+      const tabBtnWorkspaces = document.getElementById('tab-btn-workspaces');
+      const tabBtnMcps = document.getElementById('tab-btn-mcps');
+      const sheetContent = document.getElementById('sheet-content');
+
+      // 1. Brave iOS visualViewport Keyboard & Chrome Bar Pinning
+      function syncVisualViewport() {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        document.documentElement.style.setProperty('--vvh', vv.height + 'px');
+        document.documentElement.style.setProperty('--vvo', vv.offsetTop + 'px');
+      }
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncVisualViewport);
+        window.visualViewport.addEventListener('scroll', syncVisualViewport);
+        syncVisualViewport();
+      }
+      window.addEventListener('resize', syncVisualViewport);
+
+      // 2. API Helper (Strict Same-Origin + Subpath-Relative + Bearer Fallback)
+      async function apiFetch(relPath, options = {}) {
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+        if (authToken) {
+          headers['Authorization'] = 'Bearer ' + authToken;
+        }
+        const res = await fetch(relPath, Object.assign({}, options, {
+          headers,
+          credentials: 'same-origin'
+        }));
+        return res;
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function renderMarkdownLite(md) {
+        let html = escapeHtml(md);
+        html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/^### (.+)$/gm, '<div style="font-weight:700; font-size:15px; margin:8px 0 4px 0; color:#F8FAFC;">$1</div>');
+        html = html.replace(/^- (.+)$/gm, '<div style="padding-left:10px; margin:3px 0;">• $1</div>');
+        html = html.replace(/\n\n/g, '</p><p>');
+        return '<p>' + html + '</p>';
+      }
+
+      // 3. Render Top Bar, Messages, Chips & Bottom Sheet
+      function getActiveProject() {
+        if (!profileData || !profileData.projects || !profileData.projects.length) return null;
+        return profileData.projects.find(p => p.id === activeProjectId) || profileData.projects[0];
+      }
+
+      function renderTopPill() {
+        const proj = getActiveProject();
+        if (!proj) return;
+        activeProjectId = proj.id;
+        localStorage.setItem(ACTIVE_PROJECT_KEY, activeProjectId);
+        activeProjectNameEl.textContent = proj.name;
+        activeOrbitalDotEl.className = 'orbital-dot ' + (proj.status || 'Idle');
+        activeGitBranchEl.textContent = 'git:' + proj.gitBranch;
+        const mcpCount = (profileData && profileData.mcpServers) ? profileData.mcpServers.length : 0;
+        activeMcpCountEl.textContent = mcpCount + ' MCPs';
+      }
+
+      function renderChips() {
+        if (!profileData || !profileData.customPromptChips) return;
+        chipsContainer.innerHTML = profileData.customPromptChips.map(chip => (
+          `<button type="button" class="prompt-chip" data-prompt="${escapeHtml(chip.prompt)}">
+            <span style="color:#38BDF8;">✦</span> ${escapeHtml(chip.label)}
+          </button>`
+        )).join('');
+
+        chipsContainer.querySelectorAll('.prompt-chip').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const p = btn.getAttribute('data-prompt') || '';
+            promptInput.value = p;
+            autoResizeTextarea();
+            promptInput.focus();
+          });
+        });
+      }
+
+      function renderMessages() {
+        const list = messagesByProject[activeProjectId] || [];
+        if (list.length === 0) {
+          messagesList.innerHTML = '';
+          emptyWatermark.style.display = 'block';
+          return;
+        }
+        emptyWatermark.style.display = 'none';
+        messagesList.innerHTML = list.map(msg => {
+          const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+          const roleLabel = msg.role === 'user' ? 'YOU · BRAVE iOS' : ('ANTIGRAVITY · ' + (msg.model || 'GEMINI'));
+          const traces = Array.isArray(msg.toolEvents) && msg.toolEvents.length > 0
+            ? `<div class="tool-trace-list">${msg.toolEvents.map(t => (
+                `<div class="tool-trace-item">
+                  <span style="color:${t.eventType === 'Stop' ? '#10B981' : '#38BDF8'};">●</span>
+                  <span>[${escapeHtml(t.eventType)}]</span>
+                  <span style="color:#E2E8F0;">${escapeHtml(t.summary)}</span>
+                </div>`
+              )).join('')}</div>`
+            : '';
+          return `
+            <article class="msg-card ${escapeHtml(msg.role)}" id="msg-${escapeHtml(msg.id)}">
+              <div class="msg-header">
+                <span>${escapeHtml(roleLabel)}</span>
+                <span>${escapeHtml(timeStr)}</span>
+              </div>
+              <div class="msg-body">${renderMarkdownLite(msg.content || '...')}</div>
+              ${traces}
+            </article>
+          `;
+        }).join('');
+        streamContainer.scrollTop = streamContainer.scrollHeight;
+      }
+
+      function renderBottomSheet() {
+        if (!profileData) return;
+        if (activeSheetTab === 'workspaces') {
+          sheetContent.innerHTML = profileData.projects.map(p => {
+            const isSel = p.id === activeProjectId;
+            const healthColor = p.healthStatus === 'healthy' ? '#10B981' : '#F59E0B';
+            return `
+              <div class="project-item ${isSel ? 'selected' : ''}" data-project-id="${escapeHtml(p.id)}">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="orbital-dot ${escapeHtml(p.status)}"></span>
+                    <strong style="font-size:15px;">${escapeHtml(p.name)}</strong>
+                    <span class="mono-badge">${escapeHtml(p.gitBranch)}</span>
+                  </div>
+                  <span style="font-family:var(--font-mono); font-size:11px; color:${healthColor};">● :${escapeHtml(p.internalPort)} ${escapeHtml(p.healthStatus)}</span>
+                </div>
+                <div style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary); margin-bottom:4px;">
+                  ${escapeHtml(p.workspacePath)} • ${escapeHtml(p.lastCommit)}
+                </div>
+                <div style="font-size:11.5px; color:var(--text-muted);">
+                  ${escapeHtml(p.tier2Allocation)}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          sheetContent.querySelectorAll('.project-item').forEach(el => {
+            el.addEventListener('click', () => {
+              const pid = el.getAttribute('data-project-id');
+              if (pid) {
+                activeProjectId = pid;
+                renderTopPill();
+                renderMessages();
+                closeSheet();
+              }
+            });
+          });
+        } else {
+          const mcpHtml = profileData.mcpServers.map(m => `
+            <div class="mcp-item">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <strong style="font-size:14px; color:#F8FAFC;">${escapeHtml(m.name)}</strong>
+                <span class="mono-badge" style="color:#10B981; border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.12);">
+                  ● ${escapeHtml(m.status)} (${escapeHtml(m.toolsCount)} tools)
+                </span>
+              </div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px;">${escapeHtml(m.summary)}</div>
+              <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">
+                ${escapeHtml(m.transport)} • ${escapeHtml(m.domain)}
+              </div>
+            </div>
+          `).join('');
+
+          const rulesHtml = `
+            <div class="mcp-item" style="border-color:rgba(124,58,237,0.35);">
+              <div style="font-weight:700; font-size:13px; color:#C4B5FD; margin-bottom:6px;">
+                Tier 1 &amp; Tier 2 Hydrated GEMINI.md Guardrails
+              </div>
+              ${(profileData.profile.geminiMdRules || []).concat(profileData.profile.tier2InfraRules || []).map(r => (
+                `<div style="font-size:12px; color:#E2E8F0; margin-bottom:5px; line-height:1.4;">• ${escapeHtml(r)}</div>`
+              )).join('')}
+              <div style="margin-top:8px; font-family:var(--font-mono); font-size:11px; color:#38BDF8;">
+                Hooks Bridge: ${profileData.profile.hooksConfigured ? 'ACTIVE (PreToolUse / PostToolUse / Stop)' : 'READY'}
+              </div>
+            </div>
+          `;
+          sheetContent.innerHTML = mcpHtml + rulesHtml;
+        }
+      }
+
+      function openSheet() {
+        renderBottomSheet();
+        sheetBackdrop.classList.add('open');
+        bottomSheet.classList.add('open');
+      }
+
+      function closeSheet() {
+        sheetBackdrop.classList.remove('open');
+        bottomSheet.classList.remove('open');
+      }
+
+      workspacePillBtn.addEventListener('click', openSheet);
+      sheetBackdrop.addEventListener('click', closeSheet);
+
+      tabBtnWorkspaces.addEventListener('click', () => {
+        activeSheetTab = 'workspaces';
+        tabBtnWorkspaces.classList.add('active');
+        tabBtnMcps.classList.remove('active');
+        renderBottomSheet();
+      });
+
+      tabBtnMcps.addEventListener('click', () => {
+        activeSheetTab = 'mcps';
+        tabBtnMcps.classList.add('active');
+        tabBtnWorkspaces.classList.remove('active');
+        renderBottomSheet();
+      });
+
+      // 4. Profile Sync Hydration (`GET ./api/profile/sync`)
+      async function syncProfile() {
+        try {
+          const res = await apiFetch('./api/profile/sync');
+          if (res.status === 401) {
+            loginScreen.classList.add('visible');
+            return false;
+          }
+          if (!res.ok) return false;
+          const data = await res.json();
+          profileData = data;
+          if (data.messagesByProject) {
+            messagesByProject = data.messagesByProject;
+          }
+          loginScreen.classList.remove('visible');
+          renderTopPill();
+          renderChips();
+          renderMessages();
+          return true;
+        } catch (err) {
+          console.warn('Profile sync error:', err);
+          return false;
+        }
+      }
+
+      // 5. SSE Stream & iOS Foreground Recovery
+      function connectSse() {
+        if (sseSource) {
+          try { sseSource.close(); } catch (e) {}
+        }
+        const streamUrl = './api/stream' + (authToken ? ('?token=' + encodeURIComponent(authToken)) : '');
+        sseSource = new EventSource(streamUrl);
+
+        sseSource.addEventListener('hook_event', (e) => {
+          try {
+            const evt = JSON.parse(e.data);
+            hookTagLabel.textContent = evt.eventType || 'HOOK';
+            hookSummaryText.textContent = (evt.toolName ? evt.toolName + ': ' : '') + (evt.summary || '');
+          } catch (err) {}
+        });
+
+        sseSource.addEventListener('status_changed', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (profileData && profileData.projects) {
+              const p = profileData.projects.find(x => x.id === data.projectId);
+              if (p) p.status = data.status;
+              renderTopPill();
+            }
+          } catch (err) {}
+        });
+
+        sseSource.addEventListener('message_created', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (!messagesByProject[data.projectId]) messagesByProject[data.projectId] = [];
+            const exists = messagesByProject[data.projectId].some(m => m.id === data.message.id);
+            if (!exists) {
+              messagesByProject[data.projectId].push(data.message);
+              if (data.projectId === activeProjectId) renderMessages();
+            }
+          } catch (err) {}
+        });
+
+        sseSource.addEventListener('agent_chunk', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            const list = messagesByProject[data.projectId] || [];
+            const msg = list.find(m => m.id === data.messageId);
+            if (msg) {
+              msg.content = data.content;
+              if (data.projectId === activeProjectId) renderMessages();
+            }
+          } catch (err) {}
+        });
+
+        sseSource.addEventListener('message_completed', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            const list = messagesByProject[data.projectId] || [];
+            const idx = list.findIndex(m => m.id === data.message.id);
+            if (idx !== -1) list[idx] = data.message;
+            else list.push(data.message);
+            if (data.projectId === activeProjectId) renderMessages();
+          } catch (err) {}
+        });
+      }
+
+      // iOS Background Suspension Recovery
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          syncProfile();
+          connectSse();
+        }
+      });
+      window.addEventListener('pageshow', (e) => {
+        if (e.persisted) {
+          syncProfile();
+          connectSse();
+        }
+      });
+
+      resyncBtn.addEventListener('click', () => {
+        syncProfile();
+      });
+
+      // 6. Voice-First Composer Auto-Expand & Dispatch
+      function autoResizeTextarea() {
+        promptInput.style.height = 'auto';
+        promptInput.style.height = Math.min(promptInput.scrollHeight, 112) + 'px';
+        if (promptInput.value.trim().length > 0) {
+          clearInputBtn.classList.add('visible');
+        } else {
+          clearInputBtn.classList.remove('visible');
+        }
+      }
+
+      promptInput.addEventListener('input', autoResizeTextarea);
+      clearInputBtn.addEventListener('click', () => {
+        promptInput.value = '';
+        autoResizeTextarea();
+        promptInput.focus();
+      });
+
+      promptInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          dispatchPrompt();
+        }
+      });
+
+      async function dispatchPrompt() {
+        const text = promptInput.value.trim();
+        if (!text) return;
+        promptInput.value = '';
+        autoResizeTextarea();
+        sendBtn.disabled = true;
+
+        try {
+          const res = await apiFetch('./api/projects/' + encodeURIComponent(activeProjectId) + '/instruct', {
+            method: 'POST',
+            body: JSON.stringify({
+              prompt: text,
+              mode: text.startsWith('/') ? 'slash-workflow' : 'voice-instruct',
+              useGeminiRefinement: true
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.messages) {
+              messagesByProject[activeProjectId] = data.messages;
+              renderMessages();
+            }
+          }
+        } catch (err) {
+          console.error('Instruction error:', err);
+        } finally {
+          sendBtn.disabled = false;
+        }
+      }
+
+      sendBtn.addEventListener('click', dispatchPrompt);
+
+      // 7. Login Form Submission
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.style.display = 'none';
+        const pin = pinInput.value.trim();
+        const geminiApiKey = geminiKeyInput.value.trim();
+
+        try {
+          const res = await apiFetch('./api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ pin, geminiApiKey })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            loginError.textContent = data.error || 'Authentication failed';
+            loginError.style.display = 'block';
+            return;
+          }
+          if (data.token) {
+            authToken = data.token;
+            localStorage.setItem(TOKEN_KEY, authToken);
+          }
+          await syncProfile();
+          connectSse();
+        } catch (err) {
+          loginError.textContent = 'Network error connecting to Antigravity microserver';
+          loginError.style.display = 'block';
+        }
+      });
+
+      // Initial Bootstrap
+      syncProfile().then((ok) => {
+        if (ok) connectSse();
+      });
+    })();
+  </script>
+</body>
+</html>
