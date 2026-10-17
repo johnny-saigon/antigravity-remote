@@ -7,6 +7,7 @@
 - **Vast.ai Daemon**: `antigravity_remote` running on `127.0.0.1:8787` (`/workspace/antigravity-remote`).
 
 ## 2. Recent Technical Decisions & Accomplishments
+- **feat(memory): add incremental memory:sync script and post-commit hook** (`76ead04`)
 1. **Three-Tier Memory Bank Activation**: Initialized via `npx https://github.com/johnny-saigon/antigravity-memory-bank init` with `/start`, `/update-memory`, and `npm run lint:memory` (`<150 lines/file`).
 2. **Canonical Documentation Suite (`docs/`)**: Authored @[Brand Book](../docs/BRAND_BOOK.md), @[Mobile UX Brief](../docs/UX_BRIEF.md), and @[Logical & Technical Architecture](../docs/ARCHITECTURE.md).
 3. **Antigravity Rollbacks & Workspace Tools (`v1.1.0`)**: Added `read_file`, `edit_file`, `write_file`, and `run_command` tool declarations in `src/agentEngine.ts` with automatic pre-turn `#cp-xxxxxx` file snapshots and `POST /antigravity/api/projects/:id/rollback` (`↺ Rollback to here`).

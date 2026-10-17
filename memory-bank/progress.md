@@ -1,6 +1,7 @@
 # AntigravityRemote — Progress Tracker & Acceptance Matrix
 
 ## 1. Milestone Tracking
+- [x] **feat(memory): add incremental memory:sync script and post-commit hook** (`76ead04`)
 - [x] Official Antigravity Zero-G Glass UI & 2×2 SSAA Retina PNG icon generator (`src/icons.ts`, `public/index.html`)
 - [x] Zero-Config Gemini & Antigravity Profile Hydration (`src/profileSync.ts` — 4 workspaces, 7 MCPs, 3-Tier `GEMINI.md` rules)
 - [x] Real-time SSE streaming with 15s `: ping` heartbeats & `~/.gemini/config/hooks.json` bridge (`scripts/hooks-bridge.sh`)
