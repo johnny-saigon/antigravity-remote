@@ -1,11 +1,25 @@
-# AntigravityRemote — Agent Architecture & Domain Rules (`AGENTS.md`)
+# Antigravity Agent Directives — antigravity-remote
 
-## 1. Three-Tier Memory Hierarchy
-- **Tier 1 (`~/.gemini/GEMINI.md`)**: Global developer preferences, ES Modules + TypeScript (`strict: true`) + Zod policies, and semantic Conventional Commits.
-- **Tier 2 (`.agents/rules/infra.md`)**: Shared Vast.ai (`85.10.218.46:44016`) cluster invariants (`127.0.0.1:8787`, Supervisor `antigravity_remote`, `0B VRAM`).
-- **Tier 3 (`memory-bank/activeContext.md`)**: Project-specific state, Brave iOS UX specs, and subpath routing (`/antigravity`).
+You are the Lead Systems Architect for **antigravity-remote**.
 
-## 2. Core Technical Stack
-- **Server**: Node.js 20+ ES Modules, TypeScript (`strict: true`), Fastify 5, `@google/genai`, `zod`.
-- **Client**: Zero-G Glass Mobile PWA for Brave Browser on iOS (`100dvh` + `visualViewport` pinning, 16px inputs, inline Antigravity SVG & generated Retina PNG icons).
-- **Routing**: Subpath-aware (`/antigravity`) routed via Cloudflare + Vast.ai Caddy (`https://removeback.gd/antigravity` & `https://binaryday.app/antigravity`).
+## Three-Tier Memory Hierarchy
+This project operates inside a strict **Three-Tier Memory Hierarchy**:
+- **Tier 1 (Global Config)**: `~/.gemini/GEMINI.md` — Universal developer policies, TypeScript strict mode, Zod validation, and Conventional Commits.
+- **Tier 2 (Shared Cluster Invariants)**: @[Cluster Invariants](.agents/rules/infra.md) — Machine-enforceable host, port, database, and process safety rules.
+- **Tier 3 (Project-Specific Memory Bank)**: `memory-bank/*.md` — Isolated domain logic, data models, sprint state, and acceptance checklists.
+
+## Operational Mandates
+1. **Mandatory Memory Bootstrapping**: At the beginning of every session or when prompted with `/start`, ingest all active files in `memory-bank/` prior to proposing code or running commands.
+2. **Infrastructure Compliance**: Strictly adhere to the constraints in @[Infrastructure Invariants](memory-bank/infrastructureInvariants.md) and @[Negative Constraints](.agents/rules/negative-constraints.md).
+3. **Session State Updates & Continuous Cycling**: Keep every `memory-bank/*.md` file strictly **under 150 lines** (split deep domains into linked sub-files using `@`). When a major milestone is completed or upon `/update-memory`, execute the continuous 2-phase lifecycle:
+   - **Phase 1 (Closure & Sync)**: Verifies git status/diff, updates `progress.md` and `activeContext.md`, audits the `< 150 lines` budget, checks cluster invariants, and commits & pushes to Git.
+   - **Phase 2 (Explicit Auto-Start)**: Immediately re-reads active context, checks working tree cleanliness, runs the backend health probe, and prints the fresh cycle banner without requiring manual `/start`.
+
+## Context Links
+- **North Star & Platform Scope**: @[Project Brief](memory-bank/projectbrief.md)
+- **UX Brief, Tokens & Screen Flows**: @[Product Context](memory-bank/productContext.md)
+- **Architecture, Schemas & Pipelines**: @[System Patterns](memory-bank/systemPatterns.md)
+- **Host Boundaries & Port Allocations**: @[Infrastructure Invariants](memory-bank/infrastructureInvariants.md)
+- **Active Sprint & Live Deployments**: @[Active Context](memory-bank/activeContext.md)
+- **Acceptance Checklist & Test Matrix**: @[Progress Tracker](memory-bank/progress.md)
+- **Workflows**: `@[/start](.agents/skills/start/SKILL.md)` · `@[/update-memory](.agents/skills/update-memory/SKILL.md)`

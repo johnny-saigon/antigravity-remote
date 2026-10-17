@@ -8,7 +8,10 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts"
+    "dev": "tsx watch src/server.ts",
+    "lint:memory": "node scripts/lint-memory.mjs",
+    "memory:export": "npx github:johnny-saigon/antigravity-memory-bank export",
+    "memory:uninstall": "npx github:johnny-saigon/antigravity-memory-bank uninstall"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
