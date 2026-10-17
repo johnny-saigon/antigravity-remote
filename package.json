@@ -11,7 +11,9 @@
     "dev": "tsx watch src/server.ts",
     "lint:memory": "node scripts/lint-memory.mjs",
     "memory:export": "npx github:johnny-saigon/antigravity-memory-bank export",
-    "memory:uninstall": "npx github:johnny-saigon/antigravity-memory-bank uninstall"
+    "memory:uninstall": "npx github:johnny-saigon/antigravity-memory-bank uninstall",
+    "memory:sync": "node scripts/sync-memory-context.mjs",
+    "memory:upgrade": "npx github:johnny-saigon/antigravity-memory-bank upgrade"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
