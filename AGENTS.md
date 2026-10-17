@@ -14,6 +14,8 @@ This project operates inside a strict **Three-Tier Memory Hierarchy**:
 3. **Session State Updates & Continuous Cycling**: Keep every `memory-bank/*.md` file strictly **under 150 lines** (split deep domains into linked sub-files using `@`). When a major milestone is completed or upon `/update-memory`, execute the continuous 2-phase lifecycle:
    - **Phase 1 (Closure & Sync)**: Verifies git status/diff, updates `progress.md` and `activeContext.md`, audits the `< 150 lines` budget, checks cluster invariants, and commits & pushes to Git.
    - **Phase 2 (Explicit Auto-Start)**: Immediately re-reads active context, checks working tree cleanliness, runs the backend health probe, and prints the fresh cycle banner without requiring manual `/start`.
+5. **Passive Observer Invariant**: The Memory Bank (`memory-bank/*.md`) is strictly a read-only context baseline and passive observer. All active feature tickets, development tasks, sprint boards, and bug fix records are maintained in `docs/` (`docs/backlog.json`, `docs/MIGRATION_BOARD.md` or `docs/BACKLOG.md`). Never conduct active operational ticket tracking inside `memory-bank/*.md`.
+6. **Decoupled Backlog & Frugal Execution**: Capture tasks offline via `npm run backlog add` or in the Review pane to consume 0 AI tokens. Execute tasks with `@[/backlog-start](.agents/skills/backlog-start/SKILL.md)` (e.g. `/backlog-start FEAT-101`), which ingests specs from `docs/backlog.json`, runs deterministic verification, and automatically updates the local backlog and Memory Bank with a full work recap.
 
 ## Context Links
 - **North Star & Platform Scope**: @[Project Brief](memory-bank/projectbrief.md)
