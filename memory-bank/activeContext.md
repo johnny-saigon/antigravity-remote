@@ -7,6 +7,7 @@
 - **Vast.ai Daemon**: `antigravity_remote` running on `127.0.0.1:8787` (`/workspace/antigravity-remote`).
 
 ## 2. Recent Technical Decisions & Accomplishments
+- **fix(backlog): fix active brain conversation detection and render backlog.html Kanban** (`b3bcc39`)
 - **docs(memory-bank): sync session state and close milestone** (`62fbc2b`)
 - **feat(memory): add incremental memory:sync script and post-commit hook** (`76ead04`)
 1. **Three-Tier Memory Bank Activation**: Initialized via `npx https://github.com/johnny-saigon/antigravity-memory-bank init` with `/start`, `/update-memory`, and `npm run lint:memory` (`<150 lines/file`).

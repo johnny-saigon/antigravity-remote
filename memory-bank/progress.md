@@ -1,6 +1,7 @@
 # AntigravityRemote — Progress Tracker & Acceptance Matrix
 
 ## 1. Milestone Tracking
+- [x] **fix(backlog): fix active brain conversation detection and render backlog.html Kanban** (`b3bcc39`)
 - [x] **feat(memory): add incremental memory:sync script and post-commit hook** (`76ead04`)
 - [x] Official Antigravity Zero-G Glass UI & 2×2 SSAA Retina PNG icon generator (`src/icons.ts`, `public/index.html`)
 - [x] Zero-Config Gemini & Antigravity Profile Hydration (`src/profileSync.ts` — 4 workspaces, 7 MCPs, 3-Tier `GEMINI.md` rules)
