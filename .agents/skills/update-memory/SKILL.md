@@ -12,7 +12,7 @@ When `/update-memory` is triggered or a major milestone/task completes:
    ```bash
    node scripts/sync-memory-context.mjs
    ```
-2. Review all changes made in the working branch (`git status -s` and `git diff --stat`) and any production deployments on Vast.ai (`85.10.218.46:44016`).
+2. Review all changes made in the working branch (`git status -s` and `git diff --stat`) and any active production or staging deployments.
 3. Refresh the Review pane backlog artifacts:
    ```bash
    node scripts/backlog.mjs render
@@ -31,7 +31,7 @@ Immediately after closing the previous session, initialize the new working cycle
 9. Check working tree cleanliness (`git status -s`) and head commit (`git log -n 1 --oneline`).
 10. Run a live non-invasive health check against the production backend:
    ```bash
-   curl -s http://localhost:3000/health || true
+   curl -s https://removeback.gd/antigravity/api/health || curl -s http://127.0.0.1:8787/antigravity/api/health || true
    ```
 11. Explicitly output the new active session status banner to the user:
     - 🟢 **New Session Cycle Initialized**

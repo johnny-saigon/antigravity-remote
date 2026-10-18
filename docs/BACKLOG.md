@@ -1,6 +1,6 @@
-# antigravity-remote — Development & Backlog Board
+# Antigravity Remote — Development & Backlog Board
 
-This board tracks active development tickets, feature backlogs, architecture initiatives, and sprint milestones for antigravity-remote.
+This board tracks active development tickets, feature backlogs, architecture initiatives, and sprint milestones for Antigravity Remote.
 
 ---
 

@@ -2,18 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>antigravity-remote Backlog & Sprint Board</title>
+  <title>Antigravity Remote Backlog & Sprint Board</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
-    /* Antigravity design tokens styling */
-    :root {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
     .badge {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
   </style>
 </head>
@@ -22,13 +18,14 @@
   <!-- Header Bar -->
   <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 mb-4 border-b border-[var(--border,#334155)] gap-3">
     <div>
-      <div class="flex items-center gap-2">
-        <span class="text-xl">📋</span>
-        <h1 class="text-xl font-bold tracking-tight text-[var(--foreground,#f8fafc)]">antigravity-remote Local Backlog</h1>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xl">📅</span>
+        <h1 class="text-xl font-bold tracking-tight text-[var(--foreground,#f8fafc)]">Antigravity Remote Local Backlog</h1>
         <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2 py-0.5 rounded-full font-medium">0 Tokens • Frugal Mode</span>
+        <span id="bridgeStatusBadge" class="bg-slate-700/60 text-slate-300 border border-slate-600/40 text-xs px-2 py-0.5 rounded-full font-mono">Bridge: Ready</span>
       </div>
       <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mt-1">
-        Decoupled offline task capture. Click <strong>"Kickoff Prompt"</strong> to start any task in Antigravity with minimal credit consumption.
+        Decoupled offline task capture. Click <strong>"🤖 Kickoff Prompt"</strong> on any ticket to copy &amp; activate <code>/backlog-start &lt;ID&gt;</code> with zero context bloat.
       </p>
     </div>
     
@@ -39,6 +36,26 @@
       <button onclick="refreshData()" class="bg-[var(--card,#1e293b)] hover:bg-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] border border-[var(--border,#334155)] text-xs px-2.5 py-1.5 rounded-lg transition" title="Refresh Board">
         🔄
       </button>
+    </div>
+  </div>
+
+  <!-- Interactive Ready-to-Paste Kickoff Prompt Bar -->
+  <div id="kickoffBanner" class="hidden mb-4 bg-blue-950/60 border border-blue-500/50 rounded-xl p-3 shadow-lg">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="text-base">🚀</span>
+        <div>
+          <div class="text-xs font-bold text-blue-300" id="kickoffBannerTitle">Ready to Execute in Antigravity Chat</div>
+          <div class="text-xs text-slate-300" id="kickoffBannerSub">Prompt is copied &amp; selected below — press <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-xs font-mono">⌘V</kbd> in the conversation window (or <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-xs font-mono">⌘C</kbd> then <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-600 rounded text-xs font-mono">⌘V</kbd>):</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <input id="kickoffPromptInput" type="text" readonly onclick="this.focus();this.select();" class="w-full sm:w-64 bg-slate-900 border border-blue-400/60 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-emerald-400 focus:outline-none focus:ring-2 focus:ring-blue-400 selection:bg-blue-600 selection:text-white" value="/backlog-start ">
+        <button onclick="reCopyFromBanner()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition whitespace-nowrap">
+          📋 Copy
+        </button>
+        <button onclick="document.getElementById('kickoffBanner').classList.add('hidden')" class="text-xs text-slate-400 hover:text-white px-1.5 py-1">✕</button>
+      </div>
     </div>
   </div>
 
@@ -53,7 +70,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
       <div>
         <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Ticket ID</label>
-        <input id="newId" type="text" placeholder="e.g. FEAT-710" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
+        <input id="newId" type="text" placeholder="e.g. FEAT-115" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Type</label>
@@ -75,10 +92,10 @@
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Title</label>
-      <input id="newTitle" type="text" placeholder="e.g. Implement Calendar Widget for iOS 18 Lock Screen" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
+      <input id="newTitle" type="text" placeholder="Short, actionable feature or bug title" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
     </div>
     <div class="mb-3">
-      <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Description & Acceptance Criteria</label>
+      <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Description &amp; Acceptance Criteria</label>
       <textarea id="newDesc" rows="2" placeholder="Brief technical summary and key acceptance criteria..." class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500"></textarea>
     </div>
     <div class="flex items-center justify-between">
@@ -94,11 +111,11 @@
   <!-- Filter & Search Toolbar -->
   <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <div class="flex flex-wrap items-center gap-1.5">
-      <button onclick="setFilter('all')" class="filter-btn active bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 font-medium">All</button>
-      <button onclick="setFilter('todo')" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-[var(--muted-foreground,#94a3b8)]">To-Do</button>
-      <button onclick="setFilter('in_progress')" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-[var(--muted-foreground,#94a3b8)]">In Progress</button>
-      <button onclick="setFilter('high')" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-rose-400">🔥 High Priority</button>
-      <button onclick="setFilter('done')" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-emerald-400">Done</button>
+      <button onclick="setFilter('all', this)" class="filter-btn active bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-blue-500 text-white font-bold">All</button>
+      <button onclick="setFilter('todo', this)" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-[var(--muted-foreground,#94a3b8)]">To-Do</button>
+      <button onclick="setFilter('in_progress', this)" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-[var(--muted-foreground,#94a3b8)]">In Progress</button>
+      <button onclick="setFilter('high', this)" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-rose-400">🔥 High Priority</button>
+      <button onclick="setFilter('done', this)" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-emerald-400">Done</button>
     </div>
     <div class="relative w-full sm:w-64">
       <input id="searchInput" oninput="renderBoard()" type="text" placeholder="Search tasks..." class="w-full bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1 text-xs text-[var(--foreground,#f8fafc)] placeholder-[var(--muted-foreground,#94a3b8)] focus:outline-none focus:border-blue-500">
@@ -118,9 +135,53 @@
           <span class="w-2 h-2 rounded-full bg-amber-400"></span>
           <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground,#f8fafc)]">To-Do / Backlog</h2>
         </div>
-        <span id="count-todo" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">0</span>
+        <span id="count-todo" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">2</span>
       </div>
-      <div id="col-todo" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1"></div>
+      <div id="col-todo" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1">
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] hover:border-slate-500 rounded-xl p-3 shadow-sm transition group">
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono text-xs font-bold text-blue-400">FEAT-105</span>
+              <span class="badge border rounded px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border-rose-500/20">high</span>
+              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">FEAT</span>
+            </div>
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+              <button onclick="updateTaskStatus('FEAT-105', 'done')" class="text-xs hover:text-emerald-400 p-0.5" title="Mark Done">✅</button>
+              <button onclick="updateTaskStatus('FEAT-105', 'in_progress')" class="text-xs hover:text-blue-400 p-0.5" title="Mark In Progress">⚡</button>
+            </div>
+          </div>
+          <h3 class="text-xs font-semibold text-[var(--foreground,#f8fafc)] leading-snug mb-1.5 ">
+            Interactive File Diff Viewer Modal on Checkpoint Cards
+          </h3>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">Allow tapping the (N files snapshotted) badge on any turn card to preview unified before/after code diffs on Brave iOS before deciding to rollback.</p>
+          <div class="flex flex-wrap gap-1 mb-2.5"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">store.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">index.html</span></div>
+          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
+            <button onclick="kickoffTask('FEAT-105')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer"><span>🤖</span> Kickoff Prompt</button>
+            <button onclick="copyCliCommand('npm run backlog status FEAT-105 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
+          </div>
+        </div>
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] hover:border-slate-500 rounded-xl p-3 shadow-sm transition group">
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono text-xs font-bold text-blue-400">FEAT-106</span>
+              <span class="badge border rounded px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border-amber-500/20">medium</span>
+              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">FEAT</span>
+            </div>
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+              <button onclick="updateTaskStatus('FEAT-106', 'done')" class="text-xs hover:text-emerald-400 p-0.5" title="Mark Done">✅</button>
+              <button onclick="updateTaskStatus('FEAT-106', 'in_progress')" class="text-xs hover:text-blue-400 p-0.5" title="Mark In Progress">⚡</button>
+            </div>
+          </div>
+          <h3 class="text-xs font-semibold text-[var(--foreground,#f8fafc)] leading-snug mb-1.5 ">
+            One-Tap Git Commit &amp; Push Action from Mobile Turn Card
+          </h3>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">Provide a one-tap Commit &amp; Push button alongside Rollback on turns that modified workspace files.</p>
+          <div class="flex flex-wrap gap-1 mb-2.5"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">server.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">index.html</span></div>
+          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
+            <button onclick="kickoffTask('FEAT-106')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer"><span>🤖</span> Kickoff Prompt</button>
+            <button onclick="copyCliCommand('npm run backlog status FEAT-106 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
+          </div>
+        </div></div>
     </div>
 
     <!-- Column: In Progress & Testing -->
@@ -132,7 +193,7 @@
         </div>
         <span id="count-inprogress" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">0</span>
       </div>
-      <div id="col-inprogress" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1"></div>
+      <div id="col-inprogress" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1"><div class="text-xs text-slate-500 p-4 text-center">No active tasks in progress</div></div>
     </div>
 
     <!-- Column: Done -->
@@ -142,71 +203,343 @@
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground,#f8fafc)]">Completed (Done)</h2>
         </div>
-        <span id="count-done" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">0</span>
+        <span id="count-done" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">4</span>
       </div>
-      <div id="col-done" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1"></div>
+      <div id="col-done" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1">
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] hover:border-slate-500 rounded-xl p-3 shadow-sm transition group">
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono text-xs font-bold text-blue-400">FEAT-101</span>
+              <span class="badge border rounded px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border-rose-500/20">high</span>
+              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">FEAT</span>
+            </div>
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+              <button onclick="updateTaskStatus('FEAT-101', 'todo')" class="text-xs hover:text-amber-400 p-0.5" title="Move to To-Do">↩️</button>
+              
+            </div>
+          </div>
+          <h3 class="text-xs font-semibold text-[var(--foreground,#f8fafc)] leading-snug mb-1.5 line-through opacity-70">
+            Official Antigravity Zero-G Glass UI &amp; 2x2 SSAA Retina PNG Icons
+          </h3>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">Render the floating delta-prism Antigravity SVG glyph and programmatically generate 180x180, 192x192, and 512x512 Retina PNG icons on #07080C Deep Void Obsidian.</p>
+          <div class="flex flex-wrap gap-1 mb-2.5"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">icons.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">index.html</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">manifest.json</span></div>
+          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
+            <span class="text-xs text-emerald-400 font-medium">✓ Completed</span>
+            <button onclick="copyCliCommand('npm run backlog status FEAT-101 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
+          </div>
+        </div>
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] hover:border-slate-500 rounded-xl p-3 shadow-sm transition group">
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono text-xs font-bold text-blue-400">FEAT-102</span>
+              <span class="badge border rounded px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border-rose-500/20">high</span>
+              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">FEAT</span>
+            </div>
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+              <button onclick="updateTaskStatus('FEAT-102', 'todo')" class="text-xs hover:text-amber-400 p-0.5" title="Move to To-Do">↩️</button>
+              
+            </div>
+          </div>
+          <h3 class="text-xs font-semibold text-[var(--foreground,#f8fafc)] leading-snug mb-1.5 line-through opacity-70">
+            Zero-Config Gemini Profile Hydration &amp; 7 MCP Auto-Discovery
+          </h3>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">Automatically introspect ~/.gemini/GEMINI.md, mcp_config.json, hooks.json, and all 4 colocated Vast.ai workspaces on login.</p>
+          <div class="flex flex-wrap gap-1 mb-2.5"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">profileSync.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">server.ts</span></div>
+          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
+            <span class="text-xs text-emerald-400 font-medium">✓ Completed</span>
+            <button onclick="copyCliCommand('npm run backlog status FEAT-102 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
+          </div>
+        </div>
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] hover:border-slate-500 rounded-xl p-3 shadow-sm transition group">
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono text-xs font-bold text-blue-400">FEAT-103</span>
+              <span class="badge border rounded px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border-rose-500/20">high</span>
+              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">FEAT</span>
+            </div>
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+              <button onclick="updateTaskStatus('FEAT-103', 'todo')" class="text-xs hover:text-amber-400 p-0.5" title="Move to To-Do">↩️</button>
+              
+            </div>
+          </div>
+          <h3 class="text-xs font-semibold text-[var(--foreground,#f8fafc)] leading-snug mb-1.5 line-through opacity-70">
+            Real Workspace Tool Execution &amp; One-Tap Antigravity Rollbacks
+          </h3>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">Execute read_file, edit_file, write_file, and run_command via gemini-3.5-flash with pre-turn #cp-xxxxxx file snapshots and one-tap Rollback to here.</p>
+          <div class="flex flex-wrap gap-1 mb-2.5"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">agentEngine.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">store.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">index.html</span></div>
+          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
+            <span class="text-xs text-emerald-400 font-medium">✓ Completed</span>
+            <button onclick="copyCliCommand('npm run backlog status FEAT-103 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
+          </div>
+        </div>
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] hover:border-slate-500 rounded-xl p-3 shadow-sm transition group">
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono text-xs font-bold text-blue-400">FEAT-104</span>
+              <span class="badge border rounded px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border-rose-500/20">high</span>
+              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">FEAT</span>
+            </div>
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+              <button onclick="updateTaskStatus('FEAT-104', 'todo')" class="text-xs hover:text-amber-400 p-0.5" title="Move to To-Do">↩️</button>
+              
+            </div>
+          </div>
+          <h3 class="text-xs font-semibold text-[var(--foreground,#f8fafc)] leading-snug mb-1.5 line-through opacity-70">
+            User Profile Security Markers Bar &amp; 30-Minute Inactivity Auto-Logout
+          </h3>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">Display authenticated user login (jbb@avilo.capital), TLS/JWT security markers, and enforce a 30-minute (1800s) sliding inactivity auto-logout.</p>
+          <div class="flex flex-wrap gap-1 mb-2.5"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">server.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">index.html</span></div>
+          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
+            <span class="text-xs text-emerald-400 font-medium">✓ Completed</span>
+            <button onclick="copyCliCommand('npm run backlog status FEAT-104 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
+          </div>
+        </div></div>
     </div>
 
   </div>
 
   <script>
-    let rawData = {"version":"1.1.0","lastUpdated":"2026-10-17T14:37:00.000Z","project":"antigravity-remote","tasks":[{"id":"FEAT-101","type":"feature","title":"Official Antigravity Zero-G Glass UI & 2x2 SSAA Retina PNG Icons","status":"done","priority":"high","components":["src/icons.ts","public/index.html","public/manifest.json"],"description":"Render the floating delta-prism Antigravity SVG glyph and programmatically generate 180x180, 192x192, and 512x512 Retina PNG icons on #07080C Deep Void Obsidian.","spec":"Pure Node.js CRC32 + Zlib IDAT PNG encoder with 2x2 Supersampling Anti-Aliasing and Brave iOS visualViewport pinning.","acceptanceCriteria":["Inline SVG logo rendered in top bar, login hero, and empty watermark.","apple-touch-icon.png (180x180) generated and served under /antigravity/."]},{"id":"FEAT-102","type":"feature","title":"Zero-Config Gemini Profile Hydration & 7 MCP Auto-Discovery","status":"done","priority":"high","components":["src/profileSync.ts","src/server.ts"],"description":"Automatically introspect ~/.gemini/GEMINI.md, mcp_config.json, hooks.json, and all 4 colocated Vast.ai workspaces on login.","spec":"Parallel 900ms health probes across :8787, :7861, :4001, and :4002 plus hydrated Slash Prompt Chips.","acceptanceCriteria":["Auto-discovers AntigravityRemote, RemoveBackGround, BinaryDay, and SnapCal.","Surfaces all 7 MCP servers (Vast.ai, Cloudflare, OVH, GitHub, Stitch, Resend, Stripe)."]},{"id":"FEAT-103","type":"feature","title":"Real Workspace Tool Execution & One-Tap Antigravity Rollbacks","status":"done","priority":"high","components":["src/agentEngine.ts","src/store.ts","public/index.html"],"description":"Execute read_file, edit_file, write_file, and run_command via gemini-3.5-flash with pre-turn #cp-xxxxxx file snapshots and one-tap Rollback to here.","spec":"Snapshot modified files prior to write and restore in reverse chronological order on POST /api/projects/:id/rollback.","acceptanceCriteria":["Every turn creates a WorkspaceCheckpoint (#cp-xxxxxx).","Tapping Rollback restores modified files and rewinds prompt into composer."]},{"id":"FEAT-104","type":"feature","title":"User Profile Security Markers Bar & 30-Minute Inactivity Auto-Logout","status":"done","priority":"high","components":["src/server.ts","public/index.html"],"description":"Display authenticated user login (jbb@avilo.capital), TLS/JWT security markers, and enforce a 30-minute (1800s) sliding inactivity auto-logout.","spec":"Dual client countdown + server sessionRegistry sliding 1800s expiration with manual Lock button.","acceptanceCriteria":["Security bar displays user identity, TLS 1.3 marker, and live 30:00 countdown.","Session automatically revokes and locks after 30 minutes of inactivity."]},{"id":"FEAT-105","type":"feature","title":"Interactive File Diff Viewer Modal on Checkpoint Cards","status":"todo","priority":"high","components":["src/store.ts","public/index.html"],"description":"Allow tapping the (N files snapshotted) badge on any turn card to preview unified before/after code diffs on Brave iOS before deciding to rollback.","spec":"Render a Zero-G Glass diff modal comparing originalContent vs newContent from checkpoint.modifiedFiles.","acceptanceCriteria":["Tapping snapshotted files badge opens mobile-optimized unified diff view.","Supports direct one-tap rollback from inside the diff modal."]},{"id":"FEAT-106","type":"feature","title":"One-Tap Git Commit & Push Action from Mobile Turn Card","status":"todo","priority":"medium","components":["src/server.ts","public/index.html"],"description":"Provide a one-tap Commit & Push button alongside Rollback on turns that modified workspace files.","spec":"Add POST /antigravity/api/projects/:id/commit endpoint with semantic commit message generation.","acceptanceCriteria":["Commits modified files in active workspace and pushes to origin.","Updates active git SHA badge in the top Workspace Pill."]}],"milestones":[{"id":"MILESTONE-1","title":"Antigravity Remote v1.0 Microserver & Brave iOS Deployment","status":"done"},{"id":"MILESTONE-2","title":"Antigravity Remote v1.1 Workspace Tools, Rollbacks & 30m Auto-Logout","status":"done"},{"id":"MILESTONE-3","title":"Canonical Brand Book, UX Brief, Architecture Docs & Three-Tier Memory Bank","status":"done"}]};
+    let rawData = {"version":"1.1.0","lastUpdated":"2026-10-18T10:48:36.223Z","project":"antigravity-remote","tasks":[{"id":"FEAT-101","type":"feature","title":"Official Antigravity Zero-G Glass UI & 2x2 SSAA Retina PNG Icons","status":"done","priority":"high","components":["src/icons.ts","public/index.html","public/manifest.json"],"description":"Render the floating delta-prism Antigravity SVG glyph and programmatically generate 180x180, 192x192, and 512x512 Retina PNG icons on #07080C Deep Void Obsidian.","spec":"Pure Node.js CRC32 + Zlib IDAT PNG encoder with 2x2 Supersampling Anti-Aliasing and Brave iOS visualViewport pinning.","acceptanceCriteria":["Inline SVG logo rendered in top bar, login hero, and empty watermark.","apple-touch-icon.png (180x180) generated and served under /antigravity/."]},{"id":"FEAT-102","type":"feature","title":"Zero-Config Gemini Profile Hydration & 7 MCP Auto-Discovery","status":"done","priority":"high","components":["src/profileSync.ts","src/server.ts"],"description":"Automatically introspect ~/.gemini/GEMINI.md, mcp_config.json, hooks.json, and all 4 colocated Vast.ai workspaces on login.","spec":"Parallel 900ms health probes across :8787, :7861, :4001, and :4002 plus hydrated Slash Prompt Chips.","acceptanceCriteria":["Auto-discovers AntigravityRemote, RemoveBackGround, BinaryDay, and SnapCal.","Surfaces all 7 MCP servers (Vast.ai, Cloudflare, OVH, GitHub, Stitch, Resend, Stripe)."]},{"id":"FEAT-103","type":"feature","title":"Real Workspace Tool Execution & One-Tap Antigravity Rollbacks","status":"done","priority":"high","components":["src/agentEngine.ts","src/store.ts","public/index.html"],"description":"Execute read_file, edit_file, write_file, and run_command via gemini-3.5-flash with pre-turn #cp-xxxxxx file snapshots and one-tap Rollback to here.","spec":"Snapshot modified files prior to write and restore in reverse chronological order on POST /api/projects/:id/rollback.","acceptanceCriteria":["Every turn creates a WorkspaceCheckpoint (#cp-xxxxxx).","Tapping Rollback restores modified files and rewinds prompt into composer."]},{"id":"FEAT-104","type":"feature","title":"User Profile Security Markers Bar & 30-Minute Inactivity Auto-Logout","status":"done","priority":"high","components":["src/server.ts","public/index.html"],"description":"Display authenticated user login (jbb@avilo.capital), TLS/JWT security markers, and enforce a 30-minute (1800s) sliding inactivity auto-logout.","spec":"Dual client countdown + server sessionRegistry sliding 1800s expiration with manual Lock button.","acceptanceCriteria":["Security bar displays user identity, TLS 1.3 marker, and live 30:00 countdown.","Session automatically revokes and locks after 30 minutes of inactivity."]},{"id":"FEAT-105","type":"feature","title":"Interactive File Diff Viewer Modal on Checkpoint Cards","status":"todo","priority":"high","components":["src/store.ts","public/index.html"],"description":"Allow tapping the (N files snapshotted) badge on any turn card to preview unified before/after code diffs on Brave iOS before deciding to rollback.","spec":"Render a Zero-G Glass diff modal comparing originalContent vs newContent from checkpoint.modifiedFiles.","acceptanceCriteria":["Tapping snapshotted files badge opens mobile-optimized unified diff view.","Supports direct one-tap rollback from inside the diff modal."]},{"id":"FEAT-106","type":"feature","title":"One-Tap Git Commit & Push Action from Mobile Turn Card","status":"todo","priority":"medium","components":["src/server.ts","public/index.html"],"description":"Provide a one-tap Commit & Push button alongside Rollback on turns that modified workspace files.","spec":"Add POST /antigravity/api/projects/:id/commit endpoint with semantic commit message generation.","acceptanceCriteria":["Commits modified files in active workspace and pushes to origin.","Updates active git SHA badge in the top Workspace Pill."]}],"milestones":[{"id":"MILESTONE-1","title":"Antigravity Remote v1.0 Microserver & Brave iOS Deployment","status":"done"},{"id":"MILESTONE-2","title":"Antigravity Remote v1.1 Workspace Tools, Rollbacks & 30m Auto-Logout","status":"done"},{"id":"MILESTONE-3","title":"Canonical Brand Book, UX Brief, Architecture Docs & Three-Tier Memory Bank","status":"done"}],"repoRoot":"/Users/jbb/Documents/AntigravityRemote"};
+    const BRIDGE_URL = 'http://127.0.0.1:4199';
     let currentFilter = 'all';
+    let bridgeOnline = false;
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(str) {
+      if (!str) return '';
+      return String(str).replace(/[^a-zA-Z0-9_-]/g, '');
+    }
 
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.classList.remove('hidden');
-      setTimeout(() => {
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
         toast.classList.add('hidden');
-      }, 3000);
+      }, 3800);
+    }
+
+    /**
+     * Multi-layer synchronous + asynchronous clipboard copy that works inside
+     * sandboxed Electron Review pane iframes, file:// origins, and standard browsers.
+     */
+    function copyTextToClipboard(text, showBanner = false, taskId = '') {
+      let copied = false;
+
+      // Layer 1: Synchronous DOM textarea + execCommand('copy') (works in sandboxed iframes)
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '0';
+        ta.style.width = '2em';
+        ta.style.height = '2em';
+        ta.style.padding = '0';
+        ta.style.border = 'none';
+        ta.style.outline = 'none';
+        ta.style.boxShadow = 'none';
+        ta.style.background = 'transparent';
+        ta.style.opacity = '0.01';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        copied = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {}
+
+      // Layer 2: Populate & synchronously select + copy from the visible top Kickoff Banner
+      if (showBanner) {
+        const banner = document.getElementById('kickoffBanner');
+        const input = document.getElementById('kickoffPromptInput');
+        if (banner && input) {
+          banner.classList.remove('hidden');
+          input.removeAttribute('readonly');
+          input.value = text;
+          try {
+            input.focus();
+            input.select();
+            input.setSelectionRange(0, text.length);
+            if (document.execCommand('copy')) copied = true;
+          } catch (e) {}
+          input.setAttribute('readonly', '');
+          try {
+            input.focus();
+            input.select();
+          } catch (e) {}
+        }
+      }
+
+      // Layer 3: Async Clipboard API fallback
+      try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          navigator.clipboard.writeText(text).catch(() => {});
+          copied = true;
+        }
+      } catch (e) {}
+
+      // Layer 4: Notify parent frame via postMessage
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: 'antigravity:kickoff',
+            command: 'insertPrompt',
+            prompt: text,
+            text: text,
+            taskId: taskId
+          }, '*');
+        }
+      } catch (e) {}
+
+      return copied;
+    }
+
+    function reCopyFromBanner() {
+      const input = document.getElementById('kickoffPromptInput');
+      if (!input) return;
+      const text = input.value;
+      copyTextToClipboard(text, true);
+      callLocalBridge('/api/kickoff', { repoRoot: rawData.repoRoot, prompt: text });
+      showToast('📋 Copied "' + text + '" to clipboard!');
+    }
+
+    async function callLocalBridge(endpoint, payload) {
+      try {
+        const res = await fetch(BRIDGE_URL + endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBridgeBadge(true);
+          return data;
+        }
+      } catch (e) {
+        // Fallback: if iframe CSP blocks fetch (connect-src), fire a GET image beacon
+        try {
+          const img = new Image();
+          img.src = BRIDGE_URL + '/api/trigger?endpoint=' + encodeURIComponent(endpoint) + '&data=' + encodeURIComponent(JSON.stringify(payload)) + '&t=' + Date.now();
+        } catch (err) {}
+      }
+      return null;
+    }
+
+    function setBridgeBadge(online) {
+      bridgeOnline = online;
+      const badge = document.getElementById('bridgeStatusBadge');
+      if (!badge) return;
+      if (online) {
+        badge.textContent = '⚡ Native Bridge: Live';
+        badge.className = 'bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs px-2 py-0.5 rounded-full font-mono';
+      } else {
+        badge.textContent = '📋 Offline Mode (Auto-Select)';
+        badge.className = 'bg-slate-700/60 text-slate-300 border border-slate-600/40 text-xs px-2 py-0.5 rounded-full font-mono';
+      }
+    }
+
+    async function probeBridge() {
+      try {
+        const res = await fetch(BRIDGE_URL + '/api/health', { method: 'GET' });
+        if (res.ok) {
+          setBridgeBadge(true);
+          return;
+        }
+      } catch (e) {}
+      setBridgeBadge(false);
     }
 
     function toggleQuickAdd() {
       const panel = document.getElementById('quickAddPanel');
       panel.classList.toggle('hidden');
       if (!panel.classList.contains('hidden')) {
-        // Auto suggest next ID
         const maxNum = rawData.tasks.reduce((max, t) => {
-          const match = t.id.match(/FEAT-(\d+)/);
+          const match = String(t.id).match(/FEAT-(\d+)/);
           return match ? Math.max(max, parseInt(match[1], 10)) : max;
-        }, 709);
+        }, 100);
         document.getElementById('newId').value = 'FEAT-' + (maxNum + 1);
         document.getElementById('newTitle').focus();
       }
     }
 
-    function setFilter(filter) {
+    function setFilter(filter, btnEl) {
       currentFilter = filter;
       document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('border-blue-500', 'text-white', 'font-bold');
       });
-      event.target.classList.add('border-blue-500', 'text-white', 'font-bold');
+      if (btnEl) {
+        btnEl.classList.add('border-blue-500', 'text-white', 'font-bold');
+      }
       renderBoard();
     }
 
-    function copyPrompt(id, title) {
-      const prompt = "/backlog-start " + id;
-      navigator.clipboard.writeText(prompt);
-      showToast("📋 Copied: " + prompt + " (paste in Antigravity)");
+    async function kickoffTask(id) {
+      const prompt = '/backlog-start ' + id;
+      const task = rawData.tasks.find(t => t.id === id);
+      if (task && task.status === 'todo') {
+        task.status = 'in_progress';
+        renderBoard();
+      }
+
+      // Immediately copy & highlight synchronously inside click handler
+      copyTextToClipboard(prompt, true, id);
+
+      const titleEl = document.getElementById('kickoffBannerTitle');
+      if (titleEl && task) {
+        titleEl.textContent = '🚀 Ready to Kick Off [' + task.id + ']: ' + task.title;
+      }
+
+      // Also invoke local native bridge (runs OS pbcopy + persists in_progress to docs/backlog.json)
+      const bridgeRes = await callLocalBridge('/api/kickoff', {
+        repoRoot: rawData.repoRoot,
+        id: id,
+        prompt: prompt
+      });
+
+      if (bridgeRes && bridgeRes.ok) {
+        showToast('🚀 Copied "' + prompt + '" via OS clipboard & marked ' + id + ' IN_PROGRESS! Paste (⌘V) in chat.');
+      } else {
+        showToast('📋 Ready: "' + prompt + '" copied & selected in top bar — press ⌘V in Antigravity chat!');
+      }
     }
 
     function copyCliCommand(cmd) {
-      navigator.clipboard.writeText(cmd);
-      showToast("⚡ CLI command copied to clipboard: " + cmd);
+      copyTextToClipboard(cmd, false);
+      callLocalBridge('/api/clipboard', { text: cmd });
+      showToast('⚡ CLI command copied: ' + cmd);
     }
 
-    function updateTaskStatus(id, newStatus) {
+    async function updateTaskStatus(id, newStatus) {
       const task = rawData.tasks.find(t => t.id === id);
       if (task) {
         task.status = newStatus;
         renderBoard();
-        const cmd = "npm run backlog status " + id + " " + newStatus;
-        copyCliCommand(cmd);
+        const bridgeRes = await callLocalBridge('/api/status', {
+          repoRoot: rawData.repoRoot,
+          id: id,
+          status: newStatus
+        });
+        if (bridgeRes && bridgeRes.ok) {
+          showToast('✅ Saved [' + id + '] -> ' + newStatus.toUpperCase() + ' to docs/backlog.json');
+        } else {
+          const cmd = 'npm run backlog status ' + id + ' ' + newStatus;
+          copyCliCommand(cmd);
+        }
       }
     }
 
-    function saveNewTask() {
+    async function saveNewTask() {
       const id = document.getElementById('newId').value.trim();
       const title = document.getElementById('newTitle').value.trim();
       const type = document.getElementById('newType').value;
@@ -214,7 +547,7 @@
       const desc = document.getElementById('newDesc').value.trim();
 
       if (!id || !title) {
-        alert('Please provide Ticket ID and Title');
+        showToast('⚠️ Please provide both Ticket ID and Title');
         return;
       }
 
@@ -226,6 +559,7 @@
         priority,
         components: [],
         description: desc,
+        spec: desc,
         acceptanceCriteria: []
       };
 
@@ -233,15 +567,27 @@
       toggleQuickAdd();
       renderBoard();
 
-      // Copy CLI command to sync locally
-      const cmd = "npm run backlog add \"" + title + "\" --id " + id + " --type " + type + " --priority " + priority + " --desc \"" + desc.replace(/"/g, '\\"') + "\"";
-      copyCliCommand(cmd);
-      showToast("✅ Task captured! Run in terminal to persist permanently.");
+      const bridgeRes = await callLocalBridge('/api/add', {
+        repoRoot: rawData.repoRoot,
+        task: newTask
+      });
+
+      if (bridgeRes && bridgeRes.ok) {
+        showToast('✅ Saved [' + id + '] directly to docs/backlog.json (0 tokens)!');
+      } else {
+        const cmd = 'npm run backlog add "' + title.replace(/"/g, '\\"') + '" --id ' + id + ' --type ' + type + ' --priority ' + priority + ' --desc "' + desc.replace(/"/g, '\\"') + '"';
+        copyTextToClipboard(cmd, true, id);
+        showToast('✅ Task captured! Command copied to persist offline.');
+      }
     }
 
     function renderCard(task) {
       const isDone = task.status === 'done';
       const isInProgress = task.status === 'in_progress' || task.status === 'testing';
+      const safeIdAttr = escapeAttr(task.id);
+      const safeIdHtml = escapeHtml(task.id);
+      const safeTitleHtml = escapeHtml(task.title);
+      const safeDescHtml = escapeHtml(task.description);
       
       const prioColor = task.priority === 'high' 
         ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
@@ -258,50 +604,50 @@
         <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] hover:border-slate-500 rounded-xl p-3 shadow-sm transition group">
           <div class="flex items-start justify-between gap-2 mb-1.5">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-mono text-xs font-bold text-blue-400">${task.id}</span>
-              <span class="badge border rounded px-1.5 py-0.2 ${prioColor}">${task.priority || 'med'}</span>
-              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.2">${typeBadge}</span>
+              <span class="font-mono text-xs font-bold text-blue-400">${safeIdHtml}</span>
+              <span class="badge border rounded px-1.5 py-0.5 ${prioColor}">${escapeHtml(task.priority || 'med')}</span>
+              <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">${typeBadge}</span>
             </div>
             
             <!-- Quick Status Toggles -->
             <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
               ${!isDone ? `
-                <button onclick="updateTaskStatus('${task.id}', 'done')" class="text-xs hover:text-emerald-400 p-0.5" title="Mark Done">✅</button>
+                <button onclick="updateTaskStatus('${safeIdAttr}', 'done')" class="text-xs hover:text-emerald-400 p-0.5" title="Mark Done">✅</button>
               ` : `
-                <button onclick="updateTaskStatus('${task.id}', 'todo')" class="text-xs hover:text-amber-400 p-0.5" title="Move to To-Do">↩️</button>
+                <button onclick="updateTaskStatus('${safeIdAttr}', 'todo')" class="text-xs hover:text-amber-400 p-0.5" title="Move to To-Do">↩️</button>
               `}
               ${!isInProgress && !isDone ? `
-                <button onclick="updateTaskStatus('${task.id}', 'in_progress')" class="text-xs hover:text-blue-400 p-0.5" title="Mark In Progress">⚡</button>
+                <button onclick="updateTaskStatus('${safeIdAttr}', 'in_progress')" class="text-xs hover:text-blue-400 p-0.5" title="Mark In Progress">⚡</button>
               ` : ''}
             </div>
           </div>
 
           <h3 class="text-xs font-semibold text-[var(--foreground,#f8fafc)] leading-snug mb-1.5 ${isDone ? 'line-through opacity-70' : ''}">
-            ${task.title}
+            ${safeTitleHtml}
           </h3>
 
-          ${task.description ? `
-            <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">
-              ${task.description}
+          ${safeDescHtml ? `
+            <p class="text-xs text-[var(--muted-foreground,#94a3b8)] line-clamp-2 mb-2 leading-relaxed">
+              ${safeDescHtml}
             </p>
           ` : ''}
 
           ${task.components && task.components.length > 0 ? `
             <div class="flex flex-wrap gap-1 mb-2.5">
-              ${task.components.map(c => `<span class="text-[10px] font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">${c.split('/').pop()}</span>`).join('')}
+              ${task.components.map(c => `<span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">${escapeHtml(String(c).split('/').pop())}</span>`).join('')}
             </div>
           ` : ''}
 
           <!-- Action Footer -->
-          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between">
+          <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
             ${!isDone ? `
-              <button onclick="copyPrompt('${task.id}', '${task.title.replace(/'/g, "\\'")}')" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[11px] font-medium px-2 py-1 rounded-md transition flex items-center gap-1">
+              <button onclick="kickoffTask('${safeIdAttr}')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer">
                 <span>🤖</span> Kickoff Prompt
               </button>
             ` : `
-              <span class="text-[11px] text-emerald-400 font-medium">✓ Completed</span>
+              <span class="text-xs text-emerald-400 font-medium">✓ Completed</span>
             `}
-            <button onclick="copyCliCommand('npm run backlog status ${task.id} in_progress')" class="text-[10px] text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono">
+            <button onclick="copyCliCommand('npm run backlog status ${safeIdAttr} in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">
               CLI copy
             </button>
           </div>
@@ -340,8 +686,9 @@
       location.reload();
     }
 
-    // Initial render
+    // Initial render + local bridge probe
     renderBoard();
+    probeBridge();
   </script>
 </body>
 </html>
