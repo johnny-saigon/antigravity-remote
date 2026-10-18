@@ -10,16 +10,17 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "lint:memory": "node scripts/lint-memory.mjs",
-    "memory:export": "npx github:johnny-saigon/antigravity-memory-bank export",
-    "memory:uninstall": "npx github:johnny-saigon/antigravity-memory-bank uninstall",
+    "memory:export": "rm -rf ~/.npm/_npx/*/node_modules/antigravity-memory-bank 2>/dev/null; npx -y github:johnny-saigon/antigravity-memory-bank export",
+    "memory:uninstall": "rm -rf ~/.npm/_npx/*/node_modules/antigravity-memory-bank 2>/dev/null; npx -y github:johnny-saigon/antigravity-memory-bank uninstall",
     "memory:sync": "node scripts/sync-memory-context.mjs",
-    "memory:upgrade": "npx github:johnny-saigon/antigravity-memory-bank upgrade",
+    "memory:upgrade": "rm -rf ~/.npm/_npx/*/node_modules/antigravity-memory-bank 2>/dev/null; npx -y github:johnny-saigon/antigravity-memory-bank upgrade",
     "backlog": "node scripts/backlog.mjs",
     "backlog:list": "node scripts/backlog.mjs list",
     "backlog:add": "node scripts/backlog.mjs add",
     "backlog:start": "node scripts/backlog.mjs start",
     "backlog:done": "node scripts/backlog.mjs done",
-    "backlog:render": "node scripts/backlog.mjs render"
+    "backlog:render": "node scripts/backlog.mjs render",
+    "backlog:serve": "node scripts/backlog.mjs serve"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
