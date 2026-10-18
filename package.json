@@ -20,7 +20,9 @@
     "backlog:start": "node scripts/backlog.mjs start",
     "backlog:done": "node scripts/backlog.mjs done",
     "backlog:render": "node scripts/backlog.mjs render",
-    "backlog:serve": "node scripts/backlog.mjs serve"
+    "backlog:serve": "node scripts/backlog.mjs serve",
+    "backlog:attach": "node scripts/backlog.mjs attach",
+    "backlog:unpack": "node scripts/backlog.mjs unpack"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
