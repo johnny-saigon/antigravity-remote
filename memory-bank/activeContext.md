@@ -1,7 +1,7 @@
 # AntigravityRemote — Active Context & Sprint State
 
 ## 1. Current Phase & Sprint Objective
-- **Last Synchronized Commit**: `285188f` — "docs(planning): update PLANNING_GUIDE.md and BACKLOG_GUIDE.md with full installation and usage guide [skip ci]" (2026-10-21)
+- **Last Synchronized Commit**: `64be469` — "chore(repo): organize AI-native repository root, relocate loose root specs to docs/, and harden .gitignore [skip ci]" (2026-10-21)
 - **Current Phase**: `v1.1.0` Production Live, Three-Tier Memory Bank, On-the-Fly Lifecycle Hooks & Decoupled Backlog Engine Active.
 - **GitHub Repository**: `https://github.com/johnny-saigon/antigravity-remote` (`main`)
 - **Live Edge URLs**: `https://removeback.gd/antigravity/` & `https://binaryday.app/antigravity/` (Host PIN: **`1631`**)

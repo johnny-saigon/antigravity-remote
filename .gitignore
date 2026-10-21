@@ -4,3 +4,11 @@ dist/
 data/store.json
 *.log
 .DS_Store
+
+# Antigravity Memory Bank & AI-Native Ignores
+.env.local
+.env.*.local
+docs/backlog.html
+memory-backups/
+test-results/
+playwright-report/

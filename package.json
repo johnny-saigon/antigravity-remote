@@ -23,7 +23,8 @@
     "backlog:serve": "node scripts/backlog.mjs serve",
     "backlog:attach": "node scripts/backlog.mjs attach",
     "backlog:unpack": "node scripts/backlog.mjs unpack",
-    "backlog:plan": "node scripts/backlog.mjs plan"
+    "backlog:plan": "node scripts/backlog.mjs plan",
+    "memory:organize": "rm -rf ~/.npm/_npx/*/node_modules/antigravity-memory-bank 2>/dev/null; npx -y github:johnny-saigon/antigravity-memory-bank organize"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
