@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "lastUpdated": "2026-10-21T16:06:08.365Z",
+  "lastUpdated": "2026-10-21T16:53:25.456Z",
   "project": "antigravity-remote",
   "tasks": [
     {
@@ -19,6 +19,20 @@
       "acceptanceCriteria": [
         "Inline SVG logo rendered in top bar, login hero, and empty watermark.",
         "apple-touch-icon.png (180x180) generated and served under /antigravity/."
+      ],
+      "actionItems": [
+        {
+          "id": "FEAT-101-ACT-1",
+          "text": "Inline SVG logo rendered in top bar, login hero, and empty watermark.",
+          "owner": "antigravity",
+          "done": true
+        },
+        {
+          "id": "FEAT-101-ACT-2",
+          "text": "apple-touch-icon.png (180x180) generated and served under /antigravity/.",
+          "owner": "antigravity",
+          "done": true
+        }
       ]
     },
     {
@@ -36,6 +50,20 @@
       "acceptanceCriteria": [
         "Auto-discovers AntigravityRemote, RemoveBackGround, BinaryDay, and SnapCal.",
         "Surfaces all 7 MCP servers (Vast.ai, Cloudflare, OVH, GitHub, Stitch, Resend, Stripe)."
+      ],
+      "actionItems": [
+        {
+          "id": "FEAT-102-ACT-1",
+          "text": "Auto-discovers AntigravityRemote, RemoveBackGround, BinaryDay, and SnapCal.",
+          "owner": "antigravity",
+          "done": true
+        },
+        {
+          "id": "FEAT-102-ACT-2",
+          "text": "Surfaces all 7 MCP servers (Vast.ai, Cloudflare, OVH, GitHub, Stitch, Resend, Stripe).",
+          "owner": "antigravity",
+          "done": true
+        }
       ]
     },
     {
@@ -54,6 +82,20 @@
       "acceptanceCriteria": [
         "Every turn creates a WorkspaceCheckpoint (#cp-xxxxxx).",
         "Tapping Rollback restores modified files and rewinds prompt into composer."
+      ],
+      "actionItems": [
+        {
+          "id": "FEAT-103-ACT-1",
+          "text": "Every turn creates a WorkspaceCheckpoint (#cp-xxxxxx).",
+          "owner": "antigravity",
+          "done": true
+        },
+        {
+          "id": "FEAT-103-ACT-2",
+          "text": "Tapping Rollback restores modified files and rewinds prompt into composer.",
+          "owner": "antigravity",
+          "done": true
+        }
       ]
     },
     {
@@ -71,6 +113,20 @@
       "acceptanceCriteria": [
         "Security bar displays user identity, TLS 1.3 marker, and live 30:00 countdown.",
         "Session automatically revokes and locks after 30 minutes of inactivity."
+      ],
+      "actionItems": [
+        {
+          "id": "FEAT-104-ACT-1",
+          "text": "Security bar displays user identity, TLS 1.3 marker, and live 30:00 countdown.",
+          "owner": "antigravity",
+          "done": true
+        },
+        {
+          "id": "FEAT-104-ACT-2",
+          "text": "Session automatically revokes and locks after 30 minutes of inactivity.",
+          "owner": "antigravity",
+          "done": true
+        }
       ]
     },
     {
@@ -88,6 +144,20 @@
       "acceptanceCriteria": [
         "Tapping snapshotted files badge opens mobile-optimized unified diff view.",
         "Supports direct one-tap rollback from inside the diff modal."
+      ],
+      "actionItems": [
+        {
+          "id": "FEAT-105-ACT-1",
+          "text": "Tapping snapshotted files badge opens mobile-optimized unified diff view.",
+          "owner": "antigravity",
+          "done": false
+        },
+        {
+          "id": "FEAT-105-ACT-2",
+          "text": "Supports direct one-tap rollback from inside the diff modal.",
+          "owner": "antigravity",
+          "done": false
+        }
       ]
     },
     {
@@ -105,6 +175,20 @@
       "acceptanceCriteria": [
         "Commits modified files in active workspace and pushes to origin.",
         "Updates active git SHA badge in the top Workspace Pill."
+      ],
+      "actionItems": [
+        {
+          "id": "FEAT-106-ACT-1",
+          "text": "Commits modified files in active workspace and pushes to origin.",
+          "owner": "antigravity",
+          "done": false
+        },
+        {
+          "id": "FEAT-106-ACT-2",
+          "text": "Updates active git SHA badge in the top Workspace Pill.",
+          "owner": "antigravity",
+          "done": false
+        }
       ]
     }
   ],
