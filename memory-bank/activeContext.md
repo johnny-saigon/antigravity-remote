@@ -8,10 +8,10 @@
 - **Vast.ai Daemon**: `antigravity_remote` running on `127.0.0.1:8787` (`/workspace/antigravity-remote`).
 
 ## 2. Recent Technical Decisions & Accomplishments
+- **docs(memory): encode permanent Immediate Same-Turn Ticket Registration rule in AGENTS.md** (`2026-10-21`)
 - **chore(memory): sync integrationsAndCustomizations.md and hooks.json** (`8f9e753`)
 - **docs(memory): expand UX_BRIEF.md with complete spatial anatomy and interaction matrix** (`5b08d67`)
 - **chore(memory): upgrade Memory Bank with UX/UI zip attachment & unpack support** (`31a87c5`)
-- **fix(backlog): fix active brain conversation detection and render backlog.html Kanban** (`b3bcc39`)
 - **feat(agent): add Antigravity rollbacks, real workspace tool execution, security markers bar, and 30m inactivity auto-logout** (`1540638`)
 
 ## 3. Passive Backlog Reference
