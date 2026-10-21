@@ -30,12 +30,30 @@
     </div>
     
     <div class="flex items-center gap-2">
+      <button onclick="planTask('')" class="bg-purple-600/25 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5" title="Sync 3 Planning Mode Artifacts (task.md, implementation_plan.md, walkthrough.md)">
+        <span>📐</span> Planning Mode
+      </button>
       <button onclick="toggleQuickAdd()" class="bg-[var(--primary,#3b82f6)] hover:opacity-90 text-[var(--primary-foreground,#ffffff)] text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5">
         <span>➕</span> Quick Capture Task
       </button>
       <button onclick="refreshData()" class="bg-[var(--card,#1e293b)] hover:bg-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] border border-[var(--border,#334155)] text-xs px-2.5 py-1.5 rounded-lg transition" title="Refresh Board">
         🔄
       </button>
+    </div>
+  </div>
+
+  <!-- Correlated Planning Mode 3-Artifact Status Bar -->
+  <div class="mb-4 bg-slate-900/80 border border-purple-500/30 rounded-xl px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <div class="flex items-center gap-2 flex-wrap text-xs">
+      <span class="text-purple-400 font-semibold flex items-center gap-1">📐 3-Artifact Planning Lifecycle:</span>
+      <span class="font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded" title="Live checklist broken into Discovery, Active Sprint, Queued &amp; Completed groups">1. task.md</span>
+      <span class="text-slate-500">→</span>
+      <span class="font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded" title="4-Section Architectural Blueprint (Goal, User Review, Proposed Changes, Verification Plan)">2. implementation_plan.md</span>
+      <span class="text-slate-500">→</span>
+      <span class="font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded" title="Execution summary &amp; proof of deterministic/E2E verification">3. walkthrough.md</span>
+    </div>
+    <div class="text-xs text-slate-400">
+      Click <strong>📐 Plan</strong> on any ticket for <code>/backlog-plan &lt;ID&gt;</code> or <strong>🤖 Kickoff Prompt</strong> for <code>/backlog-start &lt;ID&gt;</code>
     </div>
   </div>
 
@@ -171,8 +189,9 @@
           <div class="flex flex-wrap gap-1 mb-2"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">store.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">index.html</span></div>
           
           <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5">
-                   <button onclick="kickoffTask('FEAT-105')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer"><span>🤖</span> Kickoff Prompt</button>
+            <div class="flex items-center gap-1.5 flex-wrap">
+                   <button onclick="kickoffTask('FEAT-105')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer" title="Execute /backlog-start FEAT-105"><span>🤖</span> Kickoff Prompt</button>
+                   <button onclick="planTask('FEAT-105')" class="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/40 text-xs font-semibold px-2 py-1 rounded-md transition flex items-center gap-1 cursor-pointer" title="Focus implementation_plan.md &amp; task.md on FEAT-105 (/backlog-plan FEAT-105)"><span>📐</span> Plan</button>
                    <button onclick="triggerAttachFile('FEAT-105')" class="bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/50 text-xs px-2 py-1 rounded-md transition cursor-pointer" title="Attach UX/UI .zip or spec file">📎</button>
                  </div>
             <button onclick="copyCliCommand('npm run backlog status FEAT-105 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
@@ -198,8 +217,9 @@
           <div class="flex flex-wrap gap-1 mb-2"><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">server.ts</span><span class="text-xs font-mono bg-slate-800/80 text-slate-300 px-1.5 py-0.5 rounded">index.html</span></div>
           
           <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5">
-                   <button onclick="kickoffTask('FEAT-106')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer"><span>🤖</span> Kickoff Prompt</button>
+            <div class="flex items-center gap-1.5 flex-wrap">
+                   <button onclick="kickoffTask('FEAT-106')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer" title="Execute /backlog-start FEAT-106"><span>🤖</span> Kickoff Prompt</button>
+                   <button onclick="planTask('FEAT-106')" class="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/40 text-xs font-semibold px-2 py-1 rounded-md transition flex items-center gap-1 cursor-pointer" title="Focus implementation_plan.md &amp; task.md on FEAT-106 (/backlog-plan FEAT-106)"><span>📐</span> Plan</button>
                    <button onclick="triggerAttachFile('FEAT-106')" class="bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/50 text-xs px-2 py-1 rounded-md transition cursor-pointer" title="Attach UX/UI .zip or spec file">📎</button>
                  </div>
             <button onclick="copyCliCommand('npm run backlog status FEAT-106 in_progress')" class="text-xs text-[var(--muted-foreground,#94a3b8)] hover:text-white font-mono cursor-pointer">CLI copy</button>
@@ -326,7 +346,7 @@
   </div>
 
   <script>
-    let rawData = {"version":"1.1.0","lastUpdated":"2026-10-18T20:46:51.756Z","project":"antigravity-remote","tasks":[{"id":"FEAT-101","type":"feature","title":"Official Antigravity Zero-G Glass UI & 2x2 SSAA Retina PNG Icons","status":"done","priority":"high","components":["src/icons.ts","public/index.html","public/manifest.json"],"description":"Render the floating delta-prism Antigravity SVG glyph and programmatically generate 180x180, 192x192, and 512x512 Retina PNG icons on #07080C Deep Void Obsidian.","spec":"Pure Node.js CRC32 + Zlib IDAT PNG encoder with 2x2 Supersampling Anti-Aliasing and Brave iOS visualViewport pinning.","acceptanceCriteria":["Inline SVG logo rendered in top bar, login hero, and empty watermark.","apple-touch-icon.png (180x180) generated and served under /antigravity/."]},{"id":"FEAT-102","type":"feature","title":"Zero-Config Gemini Profile Hydration & 7 MCP Auto-Discovery","status":"done","priority":"high","components":["src/profileSync.ts","src/server.ts"],"description":"Automatically introspect ~/.gemini/GEMINI.md, mcp_config.json, hooks.json, and all 4 colocated Vast.ai workspaces on login.","spec":"Parallel 900ms health probes across :8787, :7861, :4001, and :4002 plus hydrated Slash Prompt Chips.","acceptanceCriteria":["Auto-discovers AntigravityRemote, RemoveBackGround, BinaryDay, and SnapCal.","Surfaces all 7 MCP servers (Vast.ai, Cloudflare, OVH, GitHub, Stitch, Resend, Stripe)."]},{"id":"FEAT-103","type":"feature","title":"Real Workspace Tool Execution & One-Tap Antigravity Rollbacks","status":"done","priority":"high","components":["src/agentEngine.ts","src/store.ts","public/index.html"],"description":"Execute read_file, edit_file, write_file, and run_command via gemini-3.5-flash with pre-turn #cp-xxxxxx file snapshots and one-tap Rollback to here.","spec":"Snapshot modified files prior to write and restore in reverse chronological order on POST /api/projects/:id/rollback.","acceptanceCriteria":["Every turn creates a WorkspaceCheckpoint (#cp-xxxxxx).","Tapping Rollback restores modified files and rewinds prompt into composer."]},{"id":"FEAT-104","type":"feature","title":"User Profile Security Markers Bar & 30-Minute Inactivity Auto-Logout","status":"done","priority":"high","components":["src/server.ts","public/index.html"],"description":"Display authenticated user login (jbb@avilo.capital), TLS/JWT security markers, and enforce a 30-minute (1800s) sliding inactivity auto-logout.","spec":"Dual client countdown + server sessionRegistry sliding 1800s expiration with manual Lock button.","acceptanceCriteria":["Security bar displays user identity, TLS 1.3 marker, and live 30:00 countdown.","Session automatically revokes and locks after 30 minutes of inactivity."]},{"id":"FEAT-105","type":"feature","title":"Interactive File Diff Viewer Modal on Checkpoint Cards","status":"todo","priority":"high","components":["src/store.ts","public/index.html"],"description":"Allow tapping the (N files snapshotted) badge on any turn card to preview unified before/after code diffs on Brave iOS before deciding to rollback.","spec":"Render a Zero-G Glass diff modal comparing originalContent vs newContent from checkpoint.modifiedFiles.","acceptanceCriteria":["Tapping snapshotted files badge opens mobile-optimized unified diff view.","Supports direct one-tap rollback from inside the diff modal."]},{"id":"FEAT-106","type":"feature","title":"One-Tap Git Commit & Push Action from Mobile Turn Card","status":"todo","priority":"medium","components":["src/server.ts","public/index.html"],"description":"Provide a one-tap Commit & Push button alongside Rollback on turns that modified workspace files.","spec":"Add POST /antigravity/api/projects/:id/commit endpoint with semantic commit message generation.","acceptanceCriteria":["Commits modified files in active workspace and pushes to origin.","Updates active git SHA badge in the top Workspace Pill."]}],"milestones":[{"id":"MILESTONE-1","title":"Antigravity Remote v1.0 Microserver & Brave iOS Deployment","status":"done"},{"id":"MILESTONE-2","title":"Antigravity Remote v1.1 Workspace Tools, Rollbacks & 30m Auto-Logout","status":"done"},{"id":"MILESTONE-3","title":"Canonical Brand Book, UX Brief, Architecture Docs & Three-Tier Memory Bank","status":"done"}],"repoRoot":"/Users/jbb/Documents/AntigravityRemote"};
+    let rawData = {"version":"1.1.0","lastUpdated":"2026-10-21T11:34:52.028Z","project":"antigravity-remote","tasks":[{"id":"FEAT-101","type":"feature","title":"Official Antigravity Zero-G Glass UI & 2x2 SSAA Retina PNG Icons","status":"done","priority":"high","components":["src/icons.ts","public/index.html","public/manifest.json"],"description":"Render the floating delta-prism Antigravity SVG glyph and programmatically generate 180x180, 192x192, and 512x512 Retina PNG icons on #07080C Deep Void Obsidian.","spec":"Pure Node.js CRC32 + Zlib IDAT PNG encoder with 2x2 Supersampling Anti-Aliasing and Brave iOS visualViewport pinning.","acceptanceCriteria":["Inline SVG logo rendered in top bar, login hero, and empty watermark.","apple-touch-icon.png (180x180) generated and served under /antigravity/."]},{"id":"FEAT-102","type":"feature","title":"Zero-Config Gemini Profile Hydration & 7 MCP Auto-Discovery","status":"done","priority":"high","components":["src/profileSync.ts","src/server.ts"],"description":"Automatically introspect ~/.gemini/GEMINI.md, mcp_config.json, hooks.json, and all 4 colocated Vast.ai workspaces on login.","spec":"Parallel 900ms health probes across :8787, :7861, :4001, and :4002 plus hydrated Slash Prompt Chips.","acceptanceCriteria":["Auto-discovers AntigravityRemote, RemoveBackGround, BinaryDay, and SnapCal.","Surfaces all 7 MCP servers (Vast.ai, Cloudflare, OVH, GitHub, Stitch, Resend, Stripe)."]},{"id":"FEAT-103","type":"feature","title":"Real Workspace Tool Execution & One-Tap Antigravity Rollbacks","status":"done","priority":"high","components":["src/agentEngine.ts","src/store.ts","public/index.html"],"description":"Execute read_file, edit_file, write_file, and run_command via gemini-3.5-flash with pre-turn #cp-xxxxxx file snapshots and one-tap Rollback to here.","spec":"Snapshot modified files prior to write and restore in reverse chronological order on POST /api/projects/:id/rollback.","acceptanceCriteria":["Every turn creates a WorkspaceCheckpoint (#cp-xxxxxx).","Tapping Rollback restores modified files and rewinds prompt into composer."]},{"id":"FEAT-104","type":"feature","title":"User Profile Security Markers Bar & 30-Minute Inactivity Auto-Logout","status":"done","priority":"high","components":["src/server.ts","public/index.html"],"description":"Display authenticated user login (jbb@avilo.capital), TLS/JWT security markers, and enforce a 30-minute (1800s) sliding inactivity auto-logout.","spec":"Dual client countdown + server sessionRegistry sliding 1800s expiration with manual Lock button.","acceptanceCriteria":["Security bar displays user identity, TLS 1.3 marker, and live 30:00 countdown.","Session automatically revokes and locks after 30 minutes of inactivity."]},{"id":"FEAT-105","type":"feature","title":"Interactive File Diff Viewer Modal on Checkpoint Cards","status":"todo","priority":"high","components":["src/store.ts","public/index.html"],"description":"Allow tapping the (N files snapshotted) badge on any turn card to preview unified before/after code diffs on Brave iOS before deciding to rollback.","spec":"Render a Zero-G Glass diff modal comparing originalContent vs newContent from checkpoint.modifiedFiles.","acceptanceCriteria":["Tapping snapshotted files badge opens mobile-optimized unified diff view.","Supports direct one-tap rollback from inside the diff modal."]},{"id":"FEAT-106","type":"feature","title":"One-Tap Git Commit & Push Action from Mobile Turn Card","status":"todo","priority":"medium","components":["src/server.ts","public/index.html"],"description":"Provide a one-tap Commit & Push button alongside Rollback on turns that modified workspace files.","spec":"Add POST /antigravity/api/projects/:id/commit endpoint with semantic commit message generation.","acceptanceCriteria":["Commits modified files in active workspace and pushes to origin.","Updates active git SHA badge in the top Workspace Pill."]}],"milestones":[{"id":"MILESTONE-1","title":"Antigravity Remote v1.0 Microserver & Brave iOS Deployment","status":"done"},{"id":"MILESTONE-2","title":"Antigravity Remote v1.1 Workspace Tools, Rollbacks & 30m Auto-Logout","status":"done"},{"id":"MILESTONE-3","title":"Canonical Brand Book, UX Brief, Architecture Docs & Three-Tier Memory Bank","status":"done"}],"repoRoot":"/Users/jbb/Documents/AntigravityRemote"};
     const BRIDGE_URL = 'http://127.0.0.1:4199';
     let currentFilter = 'all';
     let bridgeOnline = false;
@@ -623,6 +643,32 @@
       }
     }
 
+    async function planTask(id) {
+      const prompt = id ? ('/backlog-plan ' + id) : '/backlog-plan';
+      const task = id ? rawData.tasks.find(t => t.id === id) : null;
+
+      copyTextToClipboard(prompt, true, id || '');
+
+      const titleEl = document.getElementById('kickoffBannerTitle');
+      if (titleEl) {
+        titleEl.textContent = task
+          ? ('📐 Planning Mode Ready for [' + task.id + ']: ' + task.title + ' (task.md & implementation_plan.md synced)')
+          : '📐 Planning Mode Ready (task.md, implementation_plan.md & walkthrough.md synced)';
+      }
+
+      const bridgeRes = await callLocalBridge('/api/plan', {
+        repoRoot: rawData.repoRoot,
+        id: id || '',
+        prompt: prompt
+      });
+
+      if (bridgeRes && bridgeRes.ok) {
+        showToast('📐 Synced implementation_plan.md & task.md' + (id ? ' for [' + id + ']' : '') + ' & copied "' + prompt + '"! Paste (⌘V) in chat.');
+      } else {
+        showToast('📐 Copied "' + prompt + '" — press ⌘V in Antigravity chat (or run in Planning Mode)!');
+      }
+    }
+
     function copyCliCommand(cmd) {
       copyTextToClipboard(cmd, false);
       callLocalBridge('/api/clipboard', { text: cmd });
@@ -785,9 +831,12 @@
           <!-- Action Footer -->
           <div class="pt-2 border-t border-[var(--border,#334155)]/50 flex items-center justify-between gap-2">
             ${!isDone ? `
-              <div class="flex items-center gap-1.5">
-                <button onclick="kickoffTask('${safeIdAttr}')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <button onclick="kickoffTask('${safeIdAttr}')" class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer" title="Execute /backlog-start ${safeIdAttr}">
                   <span>🤖</span> Kickoff Prompt
+                </button>
+                <button onclick="planTask('${safeIdAttr}')" class="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/40 text-xs font-semibold px-2 py-1 rounded-md transition flex items-center gap-1 cursor-pointer" title="Focus implementation_plan.md &amp; task.md on ${safeIdAttr} (/backlog-plan ${safeIdAttr})">
+                  <span>📐</span> Plan
                 </button>
                 <button onclick="triggerAttachFile('${safeIdAttr}')" class="bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/50 text-xs px-2 py-1 rounded-md transition cursor-pointer" title="Attach UX/UI .zip or spec file">
                   📎

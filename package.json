@@ -22,7 +22,8 @@
     "backlog:render": "node scripts/backlog.mjs render",
     "backlog:serve": "node scripts/backlog.mjs serve",
     "backlog:attach": "node scripts/backlog.mjs attach",
-    "backlog:unpack": "node scripts/backlog.mjs unpack"
+    "backlog:unpack": "node scripts/backlog.mjs unpack",
+    "backlog:plan": "node scripts/backlog.mjs plan"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

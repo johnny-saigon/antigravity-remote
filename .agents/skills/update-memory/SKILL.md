@@ -31,7 +31,7 @@ Immediately after closing the previous session, initialize the new working cycle
 9. Check working tree cleanliness (`git status -s`) and head commit (`git log -n 1 --oneline`).
 10. Run a live non-invasive health check against the production backend:
    ```bash
-   curl -s https://removeback.gd/antigravity/api/health || curl -s http://127.0.0.1:8787/antigravity/api/health || true
+   curl -s http://localhost:3000/health || true
    ```
 11. Explicitly output the new active session status banner to the user:
     - 🟢 **New Session Cycle Initialized**
