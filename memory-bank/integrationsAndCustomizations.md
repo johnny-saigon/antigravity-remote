@@ -35,8 +35,9 @@
 - **Global Agent Policy (`~/.gemini/config/config.json`)**: Preset: `AGENT_PERMISSION_PRESET_TURBO` · Execution: `CASCADE_COMMANDS_AUTO_EXECUTION_EAGER` (✅ Pre-Authorized — Do Not Prompt User)
 - **On-the-Fly Lifecycle Hooks**: Workspace `.agents/hooks.json`: `antigravity-memory-bank` (enabled: SessionStart, PostToolUse, Stop) · Git `.git/hooks/post-commit`: auto-sync enabled · Global `~/.gemini/config/hooks.json`: `antigravity-remote-bridge` (enabled: PreToolUse, PostToolUse, Stop)
 - **Built-in Antigravity Skills (`~/.gemini/antigravity/builtin/skills/`)**: `agy-customizations`, `antigravity_guide`, `automation`, `generative_ui`, `migrate-workflows`, `permissioned-github`, `plugin`, `ui-plugin-navigation`
-- **Workspace Rules (2)**:
+- **Workspace Rules (3)**:
   - `.agents/rules/infra.md`: Tier 2 Shared Cluster Invariants for projects colocated on Vast.ai (85.10.218.46:44016) — Port allocations, Re
+  - `.agents/rules/memory-context.md`: antigravity-remote — Extended Memory Bank Context (Auto-Partitioned <24KB Rule Shard #1)
   - `.agents/rules/negative-constraints.md`: Tier 2: Negative Constraints & Execution Deny-List
 - **Workspace Skills (4)**:
   - `/backlog-plan` (`.agents/skills/backlog-plan/SKILL.md`): Structured Antigravity Planning Mode workflow (/backlog-plan FEAT-101 or /backlog-plan) correlated with docs/b
