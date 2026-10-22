@@ -1,6 +1,7 @@
 # AntigravityRemote — Progress Tracker & Acceptance Matrix
 
 ## 1. Milestone Tracking
+- [x] **feat(skills): install executable /context, /clear, /effort, /credits, and /usage skills [skip ci]** (`b9bddfc`)
 - [x] **feat(backlog): add clickable In Progress Action Items inspector & assignment modal [skip ci]** (`e00e499`)
 - [x] **feat(backlog): add clickable In Progress Action Items inspector & assignment modal [skip ci]** (`52c0942`)
 - [x] **MILESTONE-1**: Antigravity Remote `v1.0` Microserver, 2×2 SSAA Retina PNG Icons & Zero-Config Gemini Profile Hydration (`FEAT-101`, `FEAT-102`)
