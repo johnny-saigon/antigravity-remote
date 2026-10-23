@@ -5,6 +5,16 @@ data/store.json
 *.log
 .DS_Store
 
+# Antigravity Runtime, Local Models & Python Artifacts
+.antigravity/
+*.litertlm
+*.bin
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+
 # Antigravity Memory Bank & AI-Native Ignores
 .env.local
 .env.*.local
