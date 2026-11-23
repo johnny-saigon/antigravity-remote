@@ -8,6 +8,7 @@
 <!-- ag-section:bug-records:start -->
 | Bug / Commit ID | Title & Root-Cause Summary | Status | Target Components |
 | :--- | :--- | :--- | :--- |
+| **`COMMIT-b5b1ddb`** | fix(backlog): unify canonical Backlog Kanban renderer & SSR/client ROI cards [skip ci] — Git fix commit `b5b1ddb` | DONE | `git history` |
 | **`COMMIT-b3bcc39`** | fix(backlog): fix active brain conversation detection and render backlog.html Kanban — Git fix commit `b3bcc39` | DONE | `git history` |
 | **`COMMIT-5de9d48`** | fix(gemini): update default model to gemini-3.8-flash — Git fix commit `5de9d48` | DONE | `git history` |
 <!-- ag-section:bug-records:end -->
