@@ -41,5 +41,6 @@ This index tracks the real-time status of all living specifications across **Arc
 | [`archive/ARCHITECTURE.md`](archive/ARCHITECTURE.md) | [`architecture/TECHNICAL_ARCHITECTURE.md`](architecture/TECHNICAL_ARCHITECTURE.md) |
 | [`archive/ARCHIVE.md`](archive/ARCHIVE.md) | [`architecture/TECHNICAL_ARCHITECTURE.md`](architecture/TECHNICAL_ARCHITECTURE.md) |
 | [`archive/BRAND_BOOK.md`](archive/BRAND_BOOK.md) | [`design/BRAND_BOOK.md`](design/BRAND_BOOK.md) |
+| [`archive/CREDITS_CHEATSHEET.md`](archive/CREDITS_CHEATSHEET.md) | [`architecture/LOGICAL_ARCHITECTURE.md`](architecture/LOGICAL_ARCHITECTURE.md) |
 | [`archive/UX_BRIEF.md`](archive/UX_BRIEF.md) | [`design/UX_BRIEF.md`](design/UX_BRIEF.md) |
 <!-- ag-section:archived-legacy-docs:end -->

@@ -3,11 +3,12 @@
 > **Pre-Authenticated Access & Zero-Prompt Directive**: All MCP servers (`17/17` marked `✅ AUTHENTICATED`), host credential stores, CLI sessions, and customizations below are **already authenticated, active, and pre-authorized** (`AGENT_PERMISSION_PRESET_TURBO`). **NEVER redundantly ask the user for API keys, tokens, logins, or permission, and NEVER pause waiting for access—invoke `call_mcp_tool` or read the indexed credential paths directly.**
 
 ## 1. Repository Paths & Workspace Topology
-- **Workspace Root**: `~/work/antigravity-remote/antigravity-remote` · **Git Remote**: `https://github.com/johnny-saigon/antigravity-remote` (`main`)
+- **Workspace Root**: `~/Documents/AntigravityRemote` · **Git Remote**: `https://github.com/johnny-saigon/antigravity-remote.git` (`main`)
 - **Directory Layout**: `src/`, `scripts/`, `docs/`, `memory-bank/`, `.agents/`
-- **Colocated Sibling Repos**: `~/Documents/Binaryday`, `~/Documents/Binaryday-Base44`, `~/Documents/Design Engineering Website`, `~/Documents/PlayTask`, `~/Documents/SnapCal`, `~/Documents/SnapCal-Base44`, `~/Documents/WinorBuy`, `~/Documents/Wiro`, `~/Documents/antigravity-memory-bank`, `~/Documents/rbgd`
+- **Colocated Sibling Repos**: `~/Documents/Binaryday`, `~/Documents/Binaryday-Base44`, `~/Documents/Design Engineering Website`, `~/Documents/PlayTask`, `~/Documents/SnapCal`, `~/Documents/SnapCal-Base44`, `~/Documents/SnapMail`, `~/Documents/WinorBuy`, `~/Documents/Wiro`, `~/Documents/antigravity-memory-bank`, `~/Documents/rbgd`
 
 ## 2. Environment Files, API Keys & Host Auth Stores
+- **Pre-Authenticated Host Token & CLI Stores**: `~/.github_token` (GitHub PAT ✅) · `~/.stripe_token` (Stripe API ✅) · `~/.stitch_token` (Google Stitch ✅) · `~/.ovh_credentials.json` (OVHcloud API ✅) · `~/.meta_credentials.json` (Meta Graph & App ✅) · `~/.meta_token` (Meta Business Token ✅) · `~/.azure/azureProfile.json` (Azure & Entra CLI ✅) · `~/.linkedin_mcp/account_identity.json` (LinkedIn Session ✅) · `~/Library/Application Support/mj/config.json` (Midjourney Profile ✅) · `~/.mcp-auth/mcp-remote-v1` (MCP OAuth2 Cache ✅)
 - **Workspace `.env` Files**: None detected (uses pre-authenticated host stores & `~/.gemini/config/mcp_config.json`).
 
 ## 3. Pre-Authenticated MCP Servers (`~/.gemini/config/mcp_config.json`)
