@@ -39,6 +39,7 @@ flowchart LR
 | **`FEAT-104`** | User Profile Security Markers Bar & 30-Minute Inactivity Auto-Logout | 🟢 DONE | `src/server.ts`, `public/index.html` |
 | **`FEAT-105`** | Interactive File Diff Viewer Modal on Checkpoint Cards | 📋 TODO | `src/store.ts`, `public/index.html` |
 | **`FEAT-106`** | One-Tap Git Commit & Push Action from Mobile Turn Card | 📋 TODO | `src/server.ts`, `public/index.html` |
+| **`FEAT-119`** | Investigate STOPPED removebg_caddy causing ECONNREFUSED on isolated Vast.ai port 44246 (:10200) | 📋 TODO | — |
 <!-- ag-section:logical-features:end -->
 
 ---

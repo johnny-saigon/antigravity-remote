@@ -29,7 +29,7 @@ _Progressive scaffold: automatically synchronized from `.env*` and brick contrac
 - **From [`memory-bank/integrationsAndCustomizations.md`](../../memory-bank/integrationsAndCustomizations.md) (Memory Bank Baseline)**:
   - **Workspace Root**: `~/Documents/AntigravityRemote` · **Git Remote**: `https://github.com/johnny-saigon/antigravity-remote.git` (`main`)
   - **Directory Layout**: `src/`, `scripts/`, `docs/`, `memory-bank/`, `.agents/`
-  - **Colocated Sibling Repos**: `~/Documents/Binaryday`, `~/Documents/Binaryday-Base44`, `~/Documents/RemoveBackGround`, `~/Documents/RemoveBackGround-Base44`, `~/Documents/SnapCal`, `~/Documents/SnapCal-Base44`, `~/Documents/Wiro`, `~/Documents/antigravity-memory-bank`, `~/Documents/rbgd`
+  - **Colocated Sibling Repos**: `~/Documents/Binaryday`, `~/Documents/Binaryday-Base44`, `~/Documents/Design Engineering Website`, `~/Documents/PlayTask`, `~/Documents/SnapCal`, `~/Documents/SnapCal-Base44`, `~/Documents/WinorBuy`, `~/Documents/Wiro`, `~/Documents/antigravity-memory-bank`, `~/Documents/rbgd`
   - **Pre-Authenticated Host Token & CLI Stores**: `~/.github_token` (GitHub PAT ✅) · `~/.stripe_token` (Stripe API ✅) · `~/.stitch_token` (Google Stitch ✅) · `~/.ovh_credentials.json` (OVHcloud API ✅) · `~/.meta_credentials.json` (Meta Graph & App ✅) · `~/.meta_token` (Meta Business Token ✅) · `~/.azure/azureProfile.json` (Azure & Entra CLI ✅) · `~/.linkedin_mcp/account_identity.json` (LinkedIn Session ✅) · `~/Library/Application Support/mj/config.json` (Midjourney Profile ✅) · `~/.mcp-auth/mcp-remote-v1` (MCP OAuth2 Cache ✅)
   - **Workspace `.env` Files**: None detected (uses pre-authenticated host stores & `~/.gemini/config/mcp_config.json`).
 <!-- harvested-repo-context:end -->
