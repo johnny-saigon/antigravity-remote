@@ -84,6 +84,18 @@ This board tracks active development tickets, feature backlogs, architecture ini
 
 ---
 
+### FEAT-119: Investigate STOPPED removebg_caddy causing ECONNREFUSED on isolated Vast.ai port 44246 (:10200)
+- **Status:** Backlog (`TODO`)
+- **Priority:** Medium
+- **Description:** **Component Modifications (Dependencies First)**:
+- **Technical Specification:**
+  **Component Modifications (Dependencies First)**:
+- **Acceptance Criteria:**
+  - [ ] Complete implementation and verification for Investigate STOPPED removebg_caddy causing ECONNREFUSED on isolated Vast.ai port 44246 (:10200)
+  - [ ] Verify deterministic tests and lint checks for [FEAT-119]
+
+---
+
 ## 3. Completed Migration Milestones
 
 - [x] **MILESTONE-1**: Antigravity Remote v1.0 Microserver & Brave iOS Deployment

@@ -1,6 +1,6 @@
 # AntigravityRemote — Product Context & Mobile UX Specification
 
-> Full specifications: @[Brand Book](../docs/BRAND_BOOK.md) · @[Mobile UX Brief](../docs/UX_BRIEF.md)
+> Full specifications: @[Brand Book](../docs/design/BRAND_BOOK.md) · @[Mobile UX Brief](../docs/design/UX_BRIEF.md)
 
 ## 1. Visual Design System ("Zero-G Glass")
 - **Canvas**: Deep Void Obsidian (`#07080C`) with top radial ambient glow (`rgba(124, 58, 237, 0.14)` → `rgba(56, 189, 248, 0.03)`).

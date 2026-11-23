@@ -1,6 +1,6 @@
 # AntigravityRemote — System Patterns & Technical Architecture
 
-> Full specification: @[Logical & Technical Architecture](../docs/ARCHITECTURE.md)
+> Full specification: @[Logical & Technical Architecture](../docs/architecture/TECHNICAL_ARCHITECTURE.md)
 
 ## 1. Core Technical Stack
 - **Server**: Node.js 20+ ES Modules (`"type": "module"`), TypeScript (`strict: true`), Fastify 5, `zod` boundary validation.

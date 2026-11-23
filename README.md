@@ -6,11 +6,11 @@
 
 ## 📚 Core Documentation
 
-1. [**Brand Book & Visual Design System (`docs/BRAND_BOOK.md`)**](./docs/BRAND_BOOK.md)  
+1. [**Brand Book & Visual Design System (`docs/BRAND_BOOK.md`)**](docs/design/BRAND_BOOK.md)  
    Official Antigravity delta-prism logo geometry, programmatic 2×2 SSAA Retina PNG icon rasterizer, Deep Void Obsidian (`#07080C`) & Zero-G Glass color tokens, typography scale, and component specifications.
-2. [**Mobile UX Brief & Brave iOS Ergonomics (`docs/UX_BRIEF.md`)**](./docs/UX_BRIEF.md)  
+2. [**Mobile UX Brief & Brave iOS Ergonomics (`docs/UX_BRIEF.md`)**](docs/design/UX_BRIEF.md)  
    End-to-end user workflows: Zero-Config Gemini Profile Sync, Thumb-Zone Bottom Sheet switcher, Voice-First dictation & Slash Chips, live `PreToolUse`/`PostToolUse`/`Stop` SSE hook telemetry, One-Tap Antigravity Rollbacks (`↺ Rollback to here`), and `100dvh` + `visualViewport` keyboard pinning.
-3. [**Logical & Technical Architecture (`docs/ARCHITECTURE.md`)**](./docs/ARCHITECTURE.md)  
+3. [**Logical & Technical Architecture (`docs/ARCHITECTURE.md`)**](docs/architecture/TECHNICAL_ARCHITECTURE.md)  
    3-Tier Memory Hierarchy (`~/.gemini/GEMINI.md`, `.agents/rules/infra.md`, `AGENTS.md`), Vast.ai cluster allocation matrix (`85.10.218.46:44016`), Cloudflare edge routing (`removeback.gd/antigravity` & `binaryday.app/antigravity`), module breakdown, and full REST/SSE API reference.
 
 ---

@@ -4,7 +4,7 @@
 - **Product Name**: Antigravity Remote (`v1.1.0`)
 - **Repository**: `https://github.com/johnny-saigon/antigravity-remote`
 - **Tagline**: Self-Hosted Microserver & Mobile-First Web Client for Brave Browser on iOS — styled with official Antigravity Zero-G Glass branding, powered by Zero-Config Gemini Profile Hydration (`@google/genai`), equipped with real workspace tool execution (`read_file`, `edit_file`, `write_file`, `run_command`), Antigravity Checkpoints & One-Tap Rollbacks, and protected by a 30-minute sliding inactivity auto-logout.
-- **Canonical Docs**: @[Brand Book](../docs/BRAND_BOOK.md) · @[UX Brief](../docs/UX_BRIEF.md) · @[Architecture](../docs/ARCHITECTURE.md)
+- **Canonical Docs**: @[Brand Book](../docs/design/BRAND_BOOK.md) · @[UX Brief](../docs/design/UX_BRIEF.md) · @[Architecture](../docs/architecture/TECHNICAL_ARCHITECTURE.md)
 
 ## 2. Target Platforms & Distribution Scope
 - **Primary Client**: Brave Browser on iOS (`100dvh` + `window.visualViewport` pinned PWA with `180×180` SSAA Retina `apple-touch-icon.png`).

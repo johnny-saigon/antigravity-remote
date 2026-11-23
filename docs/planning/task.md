@@ -4,7 +4,7 @@
 > [!NOTE]
 > **Correlated Backlog & Planning Mode**: Automatically synchronized with [`docs/backlog.json`](file:///Users/jbb/Documents/AntigravityRemote/docs/backlog.json), [`implementation_plan.md`](file:///Users/jbb/Documents/AntigravityRemote/docs/planning/implementation_plan.md), and [`walkthrough.md`](file:///Users/jbb/Documents/AntigravityRemote/docs/planning/walkthrough.md).
 > - **Current Phase**: `v1.1.0` Production Live, Three-Tier Memory Bank, On-the-Fly Lifecycle Hooks & Decoupled Backlog Engine Active.
-> - **Backlog Progress**: `4/6` tickets completed (`0` in progress, `2` queued).
+> - **Backlog Progress**: `4/7` tickets completed (`0` in progress, `3` queued).
 
 ## 1. Context Discovery & Architectural Baseline
 - [x] Ingest Three-Tier Memory Hierarchy (`~/.gemini/GEMINI.md`, `.agents/rules/infra.md`, `memory-bank/*.md`)
@@ -17,6 +17,7 @@
 ## 3. Queued Backlog & Next Implementation Wave (`To-Do`)
 - [ ] **[FEAT-105]** (`HIGH`) Interactive File Diff Viewer Modal on Checkpoint Cards · Files: `src/store.ts`, `public/index.html` — Plan: `/backlog-plan FEAT-105` · Start: `/backlog-start FEAT-105`
 - [ ] **[FEAT-106]** (`MEDIUM`) One-Tap Git Commit & Push Action from Mobile Turn Card · Files: `src/server.ts`, `public/index.html` — Plan: `/backlog-plan FEAT-106` · Start: `/backlog-start FEAT-106`
+- [ ] **[FEAT-119]** (`MEDIUM`) Investigate STOPPED removebg_caddy causing ECONNREFUSED on isolated Vast.ai port 44246 (:10200) — Plan: `/backlog-plan FEAT-119` · Start: `/backlog-start FEAT-119`
 
 ## 4. Completed & Verified Engineering Tasks (`Done`)
 - [x] **[FEAT-101]** Official Antigravity Zero-G Glass UI & 2x2 SSAA Retina PNG Icons

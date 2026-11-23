@@ -145,15 +145,22 @@ function findTargetBrainDirs(data, rootDir = REPO_ROOT) {
       let ownedByOther = false;
       if (fs.existsSync(existingBacklogHtml)) {
         try {
-          const htmlSample = fs.readFileSync(existingBacklogHtml, 'utf8').slice(0, 4000);
-          if (
-            htmlSample.includes(`<title>${displayProject} Backlog`) ||
-            htmlSample.includes(`"project":"${projectSlug}"`) ||
-            htmlSample.includes(`"repoRoot":${JSON.stringify(resolvedRoot)}`)
-          ) {
+          const htmlText = fs.readFileSync(existingBacklogHtml, 'utf8');
+          const repoRootTag = `"repoRoot":${JSON.stringify(resolvedRoot)}`;
+          if (htmlText.includes(repoRootTag)) {
             ownsExisting = true;
-          } else if (htmlSample.includes('"repoRoot":') || htmlSample.includes('Backlog & Sprint Board</title>')) {
+          } else if (htmlText.includes('"repoRoot":')) {
             ownedByOther = true;
+          } else {
+            const htmlSample = htmlText.slice(0, 4000);
+            if (
+              htmlSample.includes(`<title>${displayProject} Backlog`) ||
+              htmlSample.includes(`"project":"${projectSlug}"`)
+            ) {
+              ownsExisting = true;
+            } else if (htmlSample.includes('Backlog & Sprint Board</title>')) {
+              ownedByOther = true;
+            }
           }
         } catch {}
       }
@@ -235,6 +242,15 @@ function deriveWaitingOnSummary(task, actionItems = []) {
 
 function ensureTaskActionItems(task) {
   if (!task || typeof task !== 'object') return [];
+  const normPrio = String(task.priority || 'medium').toLowerCase();
+  if (normPrio === 'p0' || normPrio === 'p1' || normPrio === 'high') task.priority = 'high';
+  else if (normPrio === 'p2' || normPrio === 'med' || normPrio === 'medium') task.priority = 'medium';
+  else if (normPrio === 'p3' || normPrio === 'low') task.priority = 'low';
+
+  const normType = String(task.type || 'feature').toLowerCase();
+  if (normType === 'feat') task.type = 'feature';
+  else if (normType === 'fix') task.type = 'bug';
+
   if (Array.isArray(task.actionItems) && task.actionItems.length > 0) {
     task.actionItems = task.actionItems.map((item, idx) => {
       if (typeof item === 'string') {
@@ -314,8 +330,185 @@ function ensureTaskActionItems(task) {
 
   if (task.status === 'in_progress' || task.status === 'testing') {
     task.waitingOn = deriveWaitingOnSummary(task, task.actionItems);
+  } else if (task.status === 'done') {
+    delete task.waitingOn;
   }
   return task.actionItems;
+}
+
+// Self-healing ingestion of tickets from implementation_plan.md
+function extractPlanTicketsFromMarkdown(planRaw, rootDir = REPO_ROOT) {
+  if (!planRaw || typeof planRaw !== 'string') return [];
+  const results = [];
+  const seenIds = new Set();
+
+  const extractFilesFromBlock = (block) => {
+    const files = [];
+    const linkRe = /\[[^\]]+\]\(file:\/\/([^)#\s]+)(?:#[^)]*)?\)/g;
+    let m;
+    while ((m = linkRe.exec(block)) !== null) {
+      if (m[1].startsWith(rootDir + '/')) {
+        const rel = path.relative(rootDir, m[1]);
+        if (!rel.startsWith('.gemini') && !rel.startsWith('docs/planning/') && !files.includes(rel)) {
+          files.push(rel);
+        }
+      }
+    }
+    const backtickFileRe = /`((?:src|server|bricks|apps|scripts|tests|public|schema|caddy)\/[^`\s]+)`/g;
+    while ((m = backtickFileRe.exec(block)) !== null) {
+      if (!files.includes(m[1])) files.push(m[1]);
+    }
+    return files.slice(0, 15);
+  };
+
+  // 1. Scan Markdown headings (`##` / `###` / `####`) containing explicit ticket IDs (`FEAT-245`, `BUG-240`, etc.) or `Phase N`
+  const headingRe = /^#{2,4}\s+([^\n]+)\r?\n([\s\S]*?)(?=^#{2,4}\s+|$)/gm;
+  let hm;
+  while ((hm = headingRe.exec(planRaw)) !== null) {
+    const rawHeading = hm[1].replace(/`/g, '').trim();
+    const body = hm[2] || '';
+    const idMatch = rawHeading.match(/\b((?:FEAT|BUG|QA|REFACTOR|UX|AUTH-INFRA)-\d+)\b/i);
+    if (!idMatch) continue;
+    const id = idMatch[1].toUpperCase();
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+
+    let title = rawHeading
+      .replace(/^\[?(?:FEAT|BUG|QA|REFACTOR|UX|AUTH-INFRA)-\d+\]?\s*[:·—-]?\s*/i, '')
+      .replace(/\*\(Completed & Verified Baseline\)\*/i, '')
+      .trim();
+    if (!title || title.startsWith('-')) {
+      title = rawHeading;
+    }
+
+    const prioMatch = `${rawHeading} ${body.slice(0, 300)}`.match(/\b(P0|P1|P2|P3|HIGH|MEDIUM|LOW)\b/i);
+    const rawPrio = prioMatch ? prioMatch[1].toLowerCase() : 'medium';
+    const priority = rawPrio === 'p0' || rawPrio === 'p1' || rawPrio === 'high'
+      ? 'high'
+      : rawPrio === 'p3' || rawPrio === 'low'
+        ? 'low'
+        : 'medium';
+
+    const type = id.startsWith('BUG-') ? 'bug' : id.startsWith('QA-') ? 'qa' : id.startsWith('UX-') ? 'ux' : 'feature';
+    const components = extractFilesFromBlock(body);
+    const descLines = body
+      .split('\n')
+      .map(l => l.replace(/^[-*]\s+/, '').replace(/\*\*Specification\*\*:\s*/i, '').trim())
+      .filter(l => l && !l.startsWith('```') && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('|'));
+    const description = descLines.join(' ').slice(0, 360) || title;
+
+    results.push({
+      id,
+      type,
+      title,
+      priority,
+      components,
+      description
+    });
+  }
+
+  // 2. Scan Markdown table rows (`| Phase 2 (`FEAT-245`) | **Smart AI Object & Residual Background Eraser** | ... |`)
+  const tableRowRe = /^\|([^\n]+)\|$/gm;
+  let tm;
+  while ((tm = tableRowRe.exec(planRaw)) !== null) {
+    const row = tm[1];
+    const idMatch = row.match(/\b((?:FEAT|BUG|QA|REFACTOR|UX)-\d+)\b/i);
+    if (!idMatch) continue;
+    const id = idMatch[1].toUpperCase();
+    if (seenIds.has(id)) continue;
+    const cells = row.split('|').map(c => c.replace(/`/g, '').replace(/\*\*/g, '').trim()).filter(Boolean);
+    if (cells.length < 2) continue;
+    const candidateTitle = cells.find(c => !c.toUpperCase().includes(id) && c.length > 6 && !/^(high|medium|low|p0|p1|p2|todo|done)$/i.test(c));
+    if (!candidateTitle) continue;
+    seenIds.add(id);
+    const descCell = cells.find(c => c !== candidateTitle && !c.toUpperCase().includes(id) && c.length > 12) || candidateTitle;
+    results.push({
+      id,
+      type: id.startsWith('BUG-') ? 'bug' : 'feature',
+      title: candidateTitle,
+      priority: /p0|p1|high/i.test(row) ? 'high' : 'medium',
+      components: extractFilesFromBlock(row),
+      description: descCell.slice(0, 360)
+    });
+  }
+
+  // 3. Scan bullet points under Goal Description / Planning Scope (`- **[FEAT-245] Title** ...: Desc`)
+  const bulletRe = /^[\s*-]+\*\*\[?((?:FEAT|BUG|QA|REFACTOR|UX)-\d+)\]?\s+([^*]+)\*\*([^\n]*)/gm;
+  let bm;
+  while ((bm = bulletRe.exec(planRaw)) !== null) {
+    const id = bm[1].toUpperCase();
+    if (seenIds.has(id)) continue;
+    const title = bm[2].replace(/^[:·—-]\s*/, '').trim();
+    if (!title || title.startsWith('-')) continue;
+    seenIds.add(id);
+    const rest = bm[3] || '';
+    const descMatch = rest.match(/:\s*(.+)$/);
+    const description = descMatch ? descMatch[1].trim() : title;
+    results.push({
+      id,
+      type: id.startsWith('BUG-') ? 'bug' : 'feature',
+      title,
+      priority: /p0|p1|high/i.test(rest) ? 'high' : 'medium',
+      components: extractFilesFromBlock(rest),
+      description: description.slice(0, 360)
+    });
+  }
+
+  return results;
+}
+
+function selfHealPlanTicketsIntoBacklog(data, rootDir = REPO_ROOT) {
+  if (!data || !Array.isArray(data.tasks)) return 0;
+  const candidateFiles = [];
+  const wsPlan = path.join(rootDir, 'docs', 'planning', 'implementation_plan.md');
+  if (fs.existsSync(wsPlan)) candidateFiles.push(wsPlan);
+
+  try {
+    const brainDirs = findTargetBrainDirs(data, rootDir);
+    for (const bd of brainDirs) {
+      const bp = path.join(bd, 'implementation_plan.md');
+      if (fs.existsSync(bp) && !candidateFiles.includes(bp)) {
+        candidateFiles.unshift(bp);
+      }
+    }
+  } catch {}
+
+  let addedOrHealed = 0;
+  for (const planFile of candidateFiles) {
+    try {
+      const raw = fs.readFileSync(planFile, 'utf8');
+      const extracted = extractPlanTicketsFromMarkdown(raw, rootDir);
+      for (const item of extracted) {
+        const existing = data.tasks.find(t => String(t.id).toUpperCase() === item.id);
+        if (!existing) {
+          const newTask = {
+            id: item.id,
+            type: item.type || 'feature',
+            title: item.title,
+            status: 'todo',
+            priority: item.priority || 'medium',
+            components: item.components || [],
+            attachments: [],
+            description: item.description || item.title,
+            spec: item.description || item.title,
+            acceptanceCriteria: [
+              `Complete implementation and verification for ${item.title}`,
+              `Verify deterministic tests and lint checks for [${item.id}]`
+            ]
+          };
+          ensureTaskActionItems(newTask);
+          data.tasks.push(newTask);
+          addedOrHealed++;
+        } else if (!existing.title || existing.title.startsWith('-')) {
+          existing.title = item.title;
+          if (!existing.description) existing.description = item.description;
+          ensureTaskActionItems(existing);
+          addedOrHealed++;
+        }
+      }
+    } catch {}
+  }
+  return addedOrHealed;
 }
 
 // Load backlog JSON
@@ -338,6 +531,7 @@ function loadBacklog(rootDir = REPO_ROOT) {
         ensureTaskActionItems(t);
       }
     }
+    selfHealPlanTicketsIntoBacklog(parsed, rootDir);
     return parsed;
   } catch (err) {
     console.error(`❌ Failed to parse ${jsonPath}:`, err.message);
@@ -348,6 +542,12 @@ function loadBacklog(rootDir = REPO_ROOT) {
 // Save backlog JSON
 function saveBacklog(data, rootDir = REPO_ROOT) {
   const jsonPath = path.join(rootDir, 'docs', 'backlog.json');
+  selfHealPlanTicketsIntoBacklog(data, rootDir);
+  if (Array.isArray(data.tasks)) {
+    for (const t of data.tasks) {
+      ensureTaskActionItems(t);
+    }
+  }
   data.lastUpdated = new Date().toISOString();
   fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
   fs.writeFileSync(jsonPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
@@ -564,7 +764,7 @@ function renderMigrationBoard(data, rootDir = REPO_ROOT) {
     ''
   ];
 
-  const activeTasks = data.tasks.filter(t => t.type === 'feature' || t.type === 'bug' || t.type === 'refactor' || !t.type);
+  const activeTasks = data.tasks.filter(t => t.type === 'feature' || t.type === 'feat' || t.type === 'ux' || t.type === 'bug' || t.type === 'refactor' || !t.type);
   for (const task of activeTasks) {
     const statusLabel = task.status === 'done' ? 'Completed (`DONE`)'
       : task.status === 'in_progress' ? 'In Progress (`IN_PROGRESS`)'
@@ -669,9 +869,38 @@ function escapeAttrServer(str) {
   return String(str).replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
+function getTaskTimestampScoreServer(task, fallbackIdx = 0) {
+  if (task.status === 'done' && task.completedAt) {
+    const t = Date.parse(task.completedAt);
+    if (!Number.isNaN(t)) return t;
+  }
+  if (task.createdAt) {
+    const t = Date.parse(task.createdAt);
+    if (!Number.isNaN(t)) return t;
+  }
+  const numMatch = String(task.id || '').match(/(\d+)/);
+  if (numMatch) {
+    return parseInt(numMatch[1], 10) * 1000 + fallbackIdx;
+  }
+  return fallbackIdx;
+}
+
+function sortColumnTasksServer(tasks, sortMode = 'custom') {
+  if (!Array.isArray(tasks) || sortMode === 'custom') return tasks;
+  const indexed = tasks.map((t, idx) => ({ t, idx, score: getTaskTimestampScoreServer(t, idx) }));
+  indexed.sort((a, b) => {
+    if (a.score !== b.score) {
+      return sortMode === 'newest' ? (b.score - a.score) : (a.score - b.score);
+    }
+    return sortMode === 'newest' ? (b.idx - a.idx) : (a.idx - b.idx);
+  });
+  return indexed.map(x => x.t);
+}
+
 function renderCardServer(task) {
   const isDone = task.status === 'done';
   const isInProgress = task.status === 'in_progress' || task.status === 'testing';
+  const colKey = isDone ? 'done' : isInProgress ? 'in_progress' : 'todo';
   const safeIdAttr = escapeAttrServer(task.id);
   const safeIdHtml = escapeHtmlServer(task.id);
   const safeTitleHtml = escapeHtmlServer(task.title);
@@ -688,7 +917,8 @@ function renderCardServer(task) {
     ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
     : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
 
-  const typeBadge = task.type === 'feature' ? 'FEAT'
+  const typeBadge = (task.type === 'feature' || task.type === 'feat') ? 'FEAT'
+    : task.type === 'ux' ? 'UX'
     : task.type === 'bug' ? 'BUG'
     : task.type === 'qa' ? 'QA'
     : 'TASK';
@@ -721,15 +951,18 @@ function renderCardServer(task) {
     : '';
 
   return `
-        <div onclick="handleCardClick('${safeIdAttr}', event)" class="bg-[var(--card,#1e293b)] border ${cardBorder} rounded-xl p-3 shadow-sm transition group ${isInProgress ? 'cursor-pointer' : ''}">
+        <div data-task-id="${safeIdAttr}" data-col="${colKey}" draggable="true" ondragstart="handleDragStart(event, '${safeIdAttr}')" ondragover="handleCardDragOver(event, '${safeIdAttr}')" ondragleave="handleCardDragLeave(event)" ondrop="handleCardDrop(event, '${safeIdAttr}')" ondragend="handleDragEnd(event)" onclick="handleCardClick('${safeIdAttr}', event)" class="task-card bg-[var(--card,#1e293b)] border ${cardBorder} rounded-xl p-3 shadow-sm transition group cursor-grab active:cursor-grabbing">
           <div class="flex items-start justify-between gap-2 mb-1.5">
             <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-slate-500 hover:text-slate-300 cursor-grab select-none text-xs px-0.5" title="Drag to reorder or move between columns">⠿</span>
               <span class="font-mono text-xs font-bold text-blue-400">${safeIdHtml}</span>
               <span class="badge border rounded px-1.5 py-0.5 ${prioColor}">${escapeHtmlServer(task.priority || 'med')}</span>
               <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">${typeBadge}</span>
               ${isInProgress ? `<span onclick="openTaskInspector('${safeIdAttr}', event)" class="badge bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded px-1.5 py-0.5 cursor-pointer" title="Click to inspect Action Items">⏳ ${pendingActions.length} Action${pendingActions.length === 1 ? '' : 's'}</span>` : ''}
             </div>
-            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-0.5">
+              <button onclick="moveTaskManual('${safeIdAttr}', 'up', event)" class="text-xs text-slate-400 hover:text-white px-1 py-0.5 rounded hover:bg-slate-700/60" title="Move ticket up">↑</button>
+              <button onclick="moveTaskManual('${safeIdAttr}', 'down', event)" class="text-xs text-slate-400 hover:text-white px-1 py-0.5 rounded hover:bg-slate-700/60" title="Move ticket down">↓</button>
               <button onclick="openTaskInspector('${safeIdAttr}', event)" class="text-xs hover:text-amber-300 p-0.5" title="Inspect &amp; Assign Action Items">🎯</button>
               ${!isDone
                 ? `<button onclick="triggerAttachFile('${safeIdAttr}')" class="text-xs hover:text-indigo-400 p-0.5" title="Attach UX/UI .zip or context file">📎</button>
@@ -772,10 +1005,11 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
   const displayProject = getDisplayProjectName(data, rootDir);
   const payload = { ...data, repoRoot: rootDir };
   const jsonString = JSON.stringify(payload).replace(/</g, '\\u003c');
+  const savedSorts = (data.meta && data.meta.columnSorts) || {};
 
-  const initialTodo = (data.tasks || []).filter(t => t.status === 'todo');
-  const initialInProg = (data.tasks || []).filter(t => t.status === 'in_progress' || t.status === 'testing');
-  const initialDone = (data.tasks || []).filter(t => t.status === 'done');
+  const initialTodo = sortColumnTasksServer((data.tasks || []).filter(t => t.status === 'todo'), savedSorts.todo || 'custom');
+  const initialInProg = sortColumnTasksServer((data.tasks || []).filter(t => t.status === 'in_progress' || t.status === 'testing'), savedSorts.in_progress || 'custom');
+  const initialDone = sortColumnTasksServer((data.tasks || []).filter(t => t.status === 'done'), savedSorts.done || 'custom');
 
   const todoHtml = initialTodo.map(renderCardServer).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No to-do tasks</div>';
   const inProgHtml = initialInProg.map(renderCardServer).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No active tasks in progress</div>';
@@ -793,6 +1027,20 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+    }
+    .task-card.dragging {
+      opacity: 0.45;
+      transform: scale(0.98);
+    }
+    .task-card.drag-over-top {
+      border-top: 2px solid #3b82f6 !important;
+    }
+    .task-card.drag-over-bottom {
+      border-bottom: 2px solid #3b82f6 !important;
+    }
+    .col-drop-active {
+      background-color: rgba(59, 130, 246, 0.08);
+      border-color: rgba(59, 130, 246, 0.5) !important;
     }
   </style>
 </head>
@@ -812,14 +1060,17 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       </p>
     </div>
     
-    <div class="flex items-center gap-2">
-      <button onclick="planTask('')" class="bg-purple-600/25 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5" title="Sync 3 Planning Mode Artifacts (task.md, implementation_plan.md, walkthrough.md)">
+    <div class="flex items-center gap-2 flex-wrap">
+      <button onclick="openCreditAdvisor('')" class="bg-emerald-600/20 hover:bg-emerald-600/35 text-emerald-300 border border-emerald-500/40 text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer" title="Open Verbose Save Credits &amp; AGY Model ROI Advisor (Google Gemini, External Claude/GPT-OSS, Google Orchestrators)">
+        <span>💰</span> Save Credits &amp; Models
+      </button>
+      <button onclick="planTask('')" class="bg-purple-600/25 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer" title="Sync 3 Planning Mode Artifacts (task.md, implementation_plan.md, walkthrough.md)">
         <span>📐</span> Planning Mode
       </button>
-      <button onclick="toggleQuickAdd()" class="bg-[var(--primary,#3b82f6)] hover:opacity-90 text-[var(--primary-foreground,#ffffff)] text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5">
+      <button onclick="toggleQuickAdd()" class="bg-[var(--primary,#3b82f6)] hover:opacity-90 text-[var(--primary-foreground,#ffffff)] text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer">
         <span>➕</span> Quick Capture Task
       </button>
-      <button onclick="refreshData()" class="bg-[var(--card,#1e293b)] hover:bg-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] border border-[var(--border,#334155)] text-xs px-2.5 py-1.5 rounded-lg transition" title="Refresh Board">
+      <button onclick="refreshData()" class="bg-[var(--card,#1e293b)] hover:bg-[var(--border,#334155)] text-[var(--foreground,#f8fafc)] border border-[var(--border,#334155)] text-xs px-2.5 py-1.5 rounded-lg transition cursor-pointer" title="Refresh Board">
         🔄
       </button>
     </div>
@@ -878,8 +1129,9 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       </div>
       <div>
         <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Type</label>
-        <select id="newType" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
+        <select id="newType" onchange="updateQuickAddRoiPreview()" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
           <option value="feature">Feature</option>
+          <option value="ux">UX Improvement</option>
           <option value="bug">Bug Fix</option>
           <option value="qa">QA / Validation</option>
           <option value="refactor">Refactor</option>
@@ -887,7 +1139,7 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       </div>
       <div>
         <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Priority</label>
-        <select id="newPriority" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
+        <select id="newPriority" onchange="updateQuickAddRoiPreview()" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
           <option value="high">High</option>
           <option value="medium" selected>Medium</option>
           <option value="low">Low</option>
@@ -896,11 +1148,14 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Title</label>
-      <input id="newTitle" type="text" placeholder="Short, actionable feature or bug title" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
+      <input id="newTitle" oninput="updateQuickAddRoiPreview()" type="text" placeholder="Short, actionable feature or bug title" class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500">
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Description &amp; Acceptance Criteria</label>
-      <textarea id="newDesc" rows="2" placeholder="Brief technical summary and key acceptance criteria..." class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500"></textarea>
+      <textarea id="newDesc" oninput="updateQuickAddRoiPreview()" rows="2" placeholder="Brief technical summary and key acceptance criteria..." class="w-full bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500"></textarea>
+    </div>
+    <div id="quickAddRoiPreview" class="mb-3 bg-emerald-950/40 border border-emerald-500/30 rounded-lg p-2.5 text-xs text-emerald-200 leading-relaxed">
+      💡 <strong>Backlog-First Credit Saver (0 AI Credits):</strong> Capturing this ticket offline before prompting saves ~15k–30k exploratory discovery tokens. Fill in priority &amp; title to see your optimal AGY Model &amp; Planning Credit ROI!
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-[var(--muted-foreground,#94a3b8)] mb-1">Context Attachments (UX/UI <code>.zip</code> bundle, Stitch/Figma export, Mockups, Specs)</label>
@@ -922,7 +1177,7 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
     </div>
   </div>
 
-  <!-- Filter & Search Toolbar -->
+  <!-- Filter, Global Sort & Search Toolbar -->
   <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <div class="flex flex-wrap items-center gap-1.5">
       <button onclick="setFilter('all', this)" class="filter-btn active bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-blue-500 text-white font-bold">All</button>
@@ -930,6 +1185,13 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       <button onclick="setFilter('in_progress', this)" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-[var(--muted-foreground,#94a3b8)]">In Progress</button>
       <button onclick="setFilter('high', this)" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-rose-400">🔥 High Priority</button>
       <button onclick="setFilter('done', this)" class="filter-btn bg-[var(--card,#1e293b)] text-xs px-2.5 py-1 rounded-md border border-[var(--border,#334155)] hover:border-blue-500 text-emerald-400">Done</button>
+      <span class="text-slate-600 px-1">|</span>
+      <div class="flex items-center gap-1 bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-md px-2 py-0.5">
+        <span class="text-[11px] text-slate-400 font-medium">⇅ Sort All:</span>
+        <button onclick="setAllColumnsSort('newest')" id="globalSortNewest" class="text-xs px-1.5 py-0.5 rounded hover:bg-slate-700 text-slate-300 cursor-pointer" title="Sort all columns Newest to Oldest">⬇️ Newest</button>
+        <button onclick="setAllColumnsSort('oldest')" id="globalSortOldest" class="text-xs px-1.5 py-0.5 rounded hover:bg-slate-700 text-slate-300 cursor-pointer" title="Sort all columns Oldest to Newest">⬆️ Oldest</button>
+        <button onclick="setAllColumnsSort('custom')" id="globalSortCustom" class="text-xs px-1.5 py-0.5 rounded hover:bg-slate-700 text-blue-300 font-semibold cursor-pointer" title="Use manual drag-and-drop / custom ticket order">✋ Manual</button>
+      </div>
     </div>
     <div class="relative w-full sm:w-64">
       <input id="searchInput" oninput="renderBoard()" type="text" placeholder="Search tasks..." class="w-full bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-lg px-2.5 py-1 text-xs text-[var(--foreground,#f8fafc)] placeholder-[var(--muted-foreground,#94a3b8)] focus:outline-none focus:border-blue-500">
@@ -1028,43 +1290,74 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
     </div>
   </div>
 
+  <!-- Verbose Save Credits & AGY Model ROI Advisor Modal -->
+  <div id="creditAdvisorModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target===this) closeCreditAdvisor()">
+    <div class="bg-[var(--card,#1e293b)] border border-emerald-500/40 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="p-4 border-b border-[var(--border,#334155)] flex items-start justify-between gap-3 bg-slate-900/70">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded px-2 py-0.5 text-xs font-bold">💰 SAVE CREDITS &amp; AGY MODEL ROI ADVISOR</span>
+            <span id="advisorTicketBadge" class="font-mono text-xs font-bold text-blue-400"></span>
+          </div>
+          <h2 id="advisorModalTitle" class="text-sm font-bold text-white leading-snug">Maximize Your Quality-to-Used-Credits Ratio Across All Deployed AGY Models</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Synchronized with Google Gemini Models, External Partner Models (separate quota pool), and Google Orchestrators.</p>
+        </div>
+        <button onclick="closeCreditAdvisor()" class="text-slate-400 hover:text-white text-sm px-2 py-1 rounded-lg hover:bg-slate-800 cursor-pointer">✕</button>
+      </div>
+      <div id="creditAdvisorBody" class="p-4 overflow-y-auto flex-1 space-y-4 text-xs text-slate-200"></div>
+      <div class="p-3 border-t border-[var(--border,#334155)] bg-slate-900/80 flex items-center justify-between gap-2">
+        <span class="text-[11px] text-slate-400">💡 Always run <code class="text-emerald-300">/start</code> after finishing a ticket to reset active context delta to 0.0 KB (100% history preserved on disk).</span>
+        <button onclick="closeCreditAdvisor()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Kanban Grid -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     
     <!-- Column: Backlog / To-Do -->
-    <div class="bg-[var(--card,#1e293b)]/40 border border-[var(--border,#334155)] rounded-xl p-3 flex flex-col">
-      <div class="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#334155)]">
+    <div id="wrap-todo" ondragover="handleColumnDragOver(event, 'todo')" ondragleave="handleColumnDragLeave(event, 'todo')" ondrop="handleColumnDrop(event, 'todo')" class="bg-[var(--card,#1e293b)]/40 border border-[var(--border,#334155)] rounded-xl p-3 flex flex-col transition-colors">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#334155)] gap-1">
         <div class="flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-amber-400"></span>
           <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground,#f8fafc)]">To-Do / Backlog</h2>
         </div>
-        <span id="count-todo" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">${initialTodo.length}</span>
+        <div class="flex items-center gap-1.5">
+          <button id="sort-btn-todo" onclick="cycleColumnSort('todo')" class="text-[11px] bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/60 px-2 py-0.5 rounded font-medium transition cursor-pointer" title="Click to toggle column sort: Newest → Oldest / Oldest → Newest / Manual Order">✋ Manual</button>
+          <span id="count-todo" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">${initialTodo.length}</span>
+        </div>
       </div>
-      <div id="col-todo" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1">${todoHtml}</div>
+      <div id="col-todo" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1 min-h-[120px]">${todoHtml}</div>
     </div>
 
     <!-- Column: In Progress & Testing -->
-    <div class="bg-[var(--card,#1e293b)]/40 border border-[var(--border,#334155)] rounded-xl p-3 flex flex-col">
-      <div class="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#334155)]">
+    <div id="wrap-in_progress" ondragover="handleColumnDragOver(event, 'in_progress')" ondragleave="handleColumnDragLeave(event, 'in_progress')" ondrop="handleColumnDrop(event, 'in_progress')" class="bg-[var(--card,#1e293b)]/40 border border-[var(--border,#334155)] rounded-xl p-3 flex flex-col transition-colors">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#334155)] gap-1">
         <div class="flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
           <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground,#f8fafc)]">In Progress / QA</h2>
         </div>
-        <span id="count-inprogress" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">${initialInProg.length}</span>
+        <div class="flex items-center gap-1.5">
+          <button id="sort-btn-in_progress" onclick="cycleColumnSort('in_progress')" class="text-[11px] bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/60 px-2 py-0.5 rounded font-medium transition cursor-pointer" title="Click to toggle column sort: Newest → Oldest / Oldest → Newest / Manual Order">✋ Manual</button>
+          <span id="count-inprogress" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">${initialInProg.length}</span>
+        </div>
       </div>
-      <div id="col-inprogress" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1">${inProgHtml}</div>
+      <div id="col-inprogress" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1 min-h-[120px]">${inProgHtml}</div>
     </div>
 
     <!-- Column: Done -->
-    <div class="bg-[var(--card,#1e293b)]/40 border border-[var(--border,#334155)] rounded-xl p-3 flex flex-col">
-      <div class="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#334155)]">
+    <div id="wrap-done" ondragover="handleColumnDragOver(event, 'done')" ondragleave="handleColumnDragLeave(event, 'done')" ondrop="handleColumnDrop(event, 'done')" class="bg-[var(--card,#1e293b)]/40 border border-[var(--border,#334155)] rounded-xl p-3 flex flex-col transition-colors">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border,#334155)] gap-1">
         <div class="flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground,#f8fafc)]">Completed (Done)</h2>
         </div>
-        <span id="count-done" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">${initialDone.length}</span>
+        <div class="flex items-center gap-1.5">
+          <button id="sort-btn-done" onclick="cycleColumnSort('done')" class="text-[11px] bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/60 px-2 py-0.5 rounded font-medium transition cursor-pointer" title="Click to toggle column sort: Newest → Oldest / Oldest → Newest / Manual Order">✋ Manual</button>
+          <span id="count-done" class="text-xs bg-[var(--card,#1e293b)] px-1.5 py-0.5 rounded font-mono text-[var(--muted-foreground,#94a3b8)]">${initialDone.length}</span>
+        </div>
       </div>
-      <div id="col-done" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1">${doneHtml}</div>
+      <div id="col-done" class="space-y-2.5 flex-1 overflow-y-auto max-h-[70vh] pr-1 min-h-[120px]">${doneHtml}</div>
     </div>
 
   </div>
@@ -1077,6 +1370,22 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
     let activeAttachTaskId = null;
     let activeInspectTaskId = null;
     let inspectorOwnerFilter = 'all';
+    let draggedTaskId = null;
+    const initialMetaSorts = (rawData.meta && rawData.meta.columnSorts) || {};
+    let columnSorts = {
+      todo: initialMetaSorts.todo || 'custom',
+      in_progress: initialMetaSorts.in_progress || 'custom',
+      done: initialMetaSorts.done || 'custom'
+    };
+    try {
+      const cachedSorts = localStorage.getItem('agy_backlog_sorts_' + (rawData.project || 'default'));
+      if (cachedSorts) {
+        const parsed = JSON.parse(cachedSorts);
+        if (parsed && typeof parsed === 'object') {
+          columnSorts = { ...columnSorts, ...parsed };
+        }
+      }
+    } catch (e) {}
 
     function inferClientActionOwner(text, task) {
       const lower = String(text || '').toLowerCase();
@@ -1680,9 +1989,185 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       renderBoard();
     }
 
+    function computeTicketCreditAdvice(task) {
+      const text = task
+        ? ((task.id || '') + ' ' + (task.title || '') + ' ' + (task.description || '') + ' ' + (task.spec || '') + ' ' + (task.components || []).join(' ')).toLowerCase()
+        : '';
+      const compCount = task && Array.isArray(task.components) ? task.components.length : 0;
+      const prio = String((task && task.priority) || 'medium').toLowerCase();
+      const type = String((task && task.type) || 'feature').toLowerCase();
+
+      const isSwarm = /\\b(swarm|multi-repo|all repos|parallel|migration across|5 repositories|cross-repo)\\b/.test(text) || compCount >= 6;
+      const isHighRisk = /\\b(oauth|auth|security|schema|migration|concurrency|race|webgl|worker|stripe|billing|brick|architect|p0|production)\\b/.test(text);
+      const isMicro = /\\b(copy|typo|label|css|color|badge|sort|readme|comment|spacing|padding|icon)\\b/.test(text) && compCount <= 1 && prio !== 'high';
+
+      if (isSwarm) {
+        return {
+          tier: 'xhigh',
+          pillClass: 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/35 hover:border-fuchsia-400',
+          shortBadge: '🎛️ Orchestrator (Carbon/Neon) · Plan & Split First',
+          planVerdict: 'MANDATORY Separate /backlog-plan + Atomic Split + Orchestrator',
+          savings: '50%–70% better Q/C ROI vs. serial frontier loops',
+          stageA: 'Orchestrator (Argon/Carbon) or Gemini 4 Argon (High) — 1–2 turns to lock plan & split sub-tickets',
+          stageBGoogle: 'Orchestrator (Neon/Carbon) coordinating Gemini 4 Neon (Med) & Gemini 3.8 Flash (High) workers',
+          stageBExternal: 'Claude Sonnet 5.5 (Med) or GPT-OSS 120B (Med) for isolated external-pool workers',
+          orchestratorNote: '✅ Ideal Orchestrator fit! Switch back to Gemini 4 Neon or 3.8 Flash immediately after the swarm finishes.',
+          whyPlan: 'Parallel multi-module or cross-repo work fails without explicit ticket boundaries. Registering & splitting tickets first lets Orchestrator fan out cheap workers in parallel.',
+          effortPrefix: '/effort high'
+        };
+      }
+      if (compCount >= 3 || prio === 'high' || isHighRisk || type === 'refactor') {
+        return {
+          tier: 'high',
+          pillClass: 'bg-purple-500/15 text-purple-300 border-purple-500/35 hover:border-purple-400',
+          shortBadge: '🧠 Plan: Argon/Opus → Exec: Neon/Sonnet (Saves ~65%)',
+          planVerdict: 'SEPARATE Planning Credits (/backlog-plan First) → Switch Model Down for /backlog-start',
+          savings: '55%–80% fewer credits vs. jumping straight into coding on a frontier model',
+          stageA: 'Google: Gemini 4 Argon (High) or Carbon (High) · External: Claude Opus 5.5 (Med/High) [1–2 turns only]',
+          stageBGoogle: 'Switch DOWN after approval → Gemini 4 Neon (Med/High) or Carbon (Med)',
+          stageBExternal: 'Switch DOWN after approval → Claude Sonnet 5.5 (Medium)',
+          orchestratorNote: '⚠️ Only use Orchestrator (Neon) if /backlog-plan splits into 3+ independent parallel sub-tickets.',
+          whyPlan: 'Multi-file, high-priority, or architecture tickets cause expensive mid-flight U-turns if coded ad-hoc. Locking a 1-turn blueprint first and switching down to a workhorse model maximizes Quality/Credits.',
+          effortPrefix: '/effort high'
+        };
+      }
+      if (isMicro || prio === 'low') {
+        return {
+          tier: 'low',
+          pillClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35 hover:border-emerald-400',
+          shortBadge: '⚡ Gemini 3.8 Flash (Low) · Direct Start (Skip /plan)',
+          planVerdict: 'SKIP Separate /plan → Direct /backlog-start (Saves ~50% Credits)',
+          savings: '50%–75% fewer credits vs. leaving a frontier model active',
+          stageA: 'Skip separate /backlog-plan — a dedicated planning turn costs as much as this entire 2-turn fix!',
+          stageBGoogle: 'Gemini 3.8 Flash (Low or Medium) — or Gemini 4 Hydrogen (Low)',
+          stageBExternal: 'GPT-OSS 120B (Medium) — or Claude Sonnet 5.5 (Low)',
+          orchestratorNote: '🚫 NEVER use Google Orchestrators for 1-file edits (wastes 4x–6x credits in fan-out overhead).',
+          whyPlan: 'Low-risk boilerplate/UI tweaks have minimal architectural ambiguity. Having this 0-token ticket already gives the model exact scope without burning a separate planning turn.',
+          effortPrefix: '/effort low'
+        };
+      }
+      return {
+        tier: 'medium',
+        pillClass: 'bg-sky-500/15 text-sky-300 border-sky-500/35 hover:border-sky-400',
+        shortBadge: '⚙️ Gemini 4 Neon (Med) / Sonnet 5.5 · Direct Start',
+        planVerdict: 'Ticket-First Direct /backlog-start (Optional /plan only if unclear)',
+        savings: '40%–60% fewer credits vs. ad-hoc chat discovery on Argon/Opus',
+        stageA: 'Optional — skip /plan when spec & components are clear; run /backlog-plan only if edge cases need design review',
+        stageBGoogle: 'Gemini 4 Neon (Medium or High) — or Gemini 4 Hydrogen (High)',
+        stageBExternal: 'Claude Sonnet 5.5 (Medium)',
+        orchestratorNote: '🚫 Avoid Google Orchestrators for 1–2 file tickets.',
+        whyPlan: 'Because this ticket already defines scope offline (0 AI credits), jumping straight to /backlog-start on Gemini 4 Neon or Claude Sonnet 5.5 gives the best daily Quality-to-Credit ratio.',
+        effortPrefix: '/effort medium'
+      };
+    }
+
+    function updateQuickAddRoiPreview() {
+      const box = document.getElementById('quickAddRoiPreview');
+      if (!box) return;
+      const draftTask = {
+        id: (document.getElementById('newId') && document.getElementById('newId').value) || 'NEW',
+        type: (document.getElementById('newType') && document.getElementById('newType').value) || 'feature',
+        priority: (document.getElementById('newPriority') && document.getElementById('newPriority').value) || 'medium',
+        title: (document.getElementById('newTitle') && document.getElementById('newTitle').value) || '',
+        description: (document.getElementById('newDesc') && document.getElementById('newDesc').value) || '',
+        components: []
+      };
+      const adv = computeTicketCreditAdvice(draftTask);
+      box.innerHTML = '💡 <strong>Live Credit-Saving &amp; AGY Model Preview (0 AI Tokens):</strong> ' +
+        '<span class="text-white font-semibold">' + escapeHtml(adv.planVerdict) + '</span><br>' +
+        '• <strong>Best Google Model:</strong> ' + escapeHtml(adv.stageBGoogle) + '<br>' +
+        '• <strong>External Pool Equivalent:</strong> ' + escapeHtml(adv.stageBExternal) + ' · <strong>Estimated Savings:</strong> ' + escapeHtml(adv.savings);
+    }
+
+    function openCreditAdvisor(taskId, ev) {
+      if (ev) ev.stopPropagation();
+      const modal = document.getElementById('creditAdvisorModal');
+      const body = document.getElementById('creditAdvisorBody');
+      const badge = document.getElementById('advisorTicketBadge');
+      const titleEl = document.getElementById('advisorModalTitle');
+      if (!modal || !body) return;
+
+      const task = taskId
+        ? rawData.tasks.find(t => t.id === taskId)
+        : (rawData.tasks.find(t => t.status === 'in_progress') || rawData.tasks.find(t => t.status === 'todo') || null);
+      const adv = computeTicketCreditAdvice(task);
+
+      badge.textContent = task ? ('[' + task.id + '] ' + (task.priority || 'medium').toUpperCase()) : 'WORKSPACE GUIDE';
+      titleEl.textContent = task
+        ? ('Quality-to-Credit ROI Prescription for [' + task.id + ']: ' + task.title)
+        : 'Save Credits & AGY Model Optimization Guide (All 3 Deployed Model Families)';
+
+      const safeId = task ? escapeAttr(task.id) : '';
+      const planBtn = task
+        ? \`<button onclick="closeCreditAdvisor(); planTask('\${safeId}')" class="bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer">📐 Copy Stage 1 Plan Prompt (/effort high /backlog-plan \${escapeHtml(task.id)})</button>\`
+        : '';
+      const execBtn = task
+        ? \`<button onclick="closeCreditAdvisor(); kickoffTask('\${safeId}')" class="bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/50 text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer">🤖 Copy Stage 2 Execute Prompt (\${escapeHtml(adv.effortPrefix)} /backlog-start \${escapeHtml(task.id)})</button>\`
+        : '';
+
+      body.innerHTML = \`
+        <div class="bg-slate-900/90 border border-emerald-500/35 rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <span class="text-xs font-bold text-emerald-300">🎯 \${escapeHtml(adv.planVerdict)}</span>
+            <span class="badge bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 rounded px-2 py-0.5 text-[11px]">💰 \${escapeHtml(adv.savings)}</span>
+          </div>
+          <p class="text-slate-300 leading-relaxed"><strong>Why this strategy wins on Quality / Credits:</strong> \${escapeHtml(adv.whyPlan)}</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+            <div class="bg-slate-950/70 border border-purple-500/30 rounded-lg p-2.5">
+              <div class="text-[11px] font-bold text-purple-300 mb-1">1️⃣ Stage A — Separate Planning (/backlog-plan)</div>
+              <div class="text-slate-200">\${escapeHtml(adv.stageA)}</div>
+            </div>
+            <div class="bg-slate-950/70 border border-blue-500/30 rounded-lg p-2.5">
+              <div class="text-[11px] font-bold text-blue-300 mb-1">2️⃣ Stage B — Execution (/backlog-start)</div>
+              <div class="text-slate-200"><strong>Google Pool:</strong> \${escapeHtml(adv.stageBGoogle)}<br><strong>External Pool:</strong> \${escapeHtml(adv.stageBExternal)}</div>
+            </div>
+          </div>
+          <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 text-amber-200">
+            <strong>🎛️ Google Orchestrator Guardrail:</strong> \${escapeHtml(adv.orchestratorNote)}
+          </div>
+          \${task ? \`<div class="flex flex-wrap gap-2 pt-1">\${planBtn}\${execBtn}</div>\` : ''}
+        </div>
+
+        <div class="bg-slate-900/75 border border-slate-700/80 rounded-xl p-3.5 space-y-2">
+          <h3 class="text-xs font-bold text-white uppercase tracking-wider">⚖️ Complete Deployed AGY Model Matrix &amp; Dual Quota-Pool Balancing</h3>
+          <p class="text-slate-400">Google Gemini &amp; Google Orchestrators share <strong>Quota Pool 1</strong>, while Claude 5.5 &amp; GPT-OSS 120B share <strong>Quota Pool 2</strong> (independent 4h reset clocks). Switch across pools before hitting a limit!</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+            <div class="bg-slate-950/80 border border-sky-500/30 rounded-lg p-2.5 space-y-1.5">
+              <div class="font-bold text-sky-300">🔵 1. Google Gemini Models (Pool 1)</div>
+              <div><strong>Gemini 3.8 Flash (Low/Med/High)</strong> <span class="text-emerald-400">[1.0x]</span> — Micro-edits, CSS/copy, docs, test runs &amp; browser subagents.</div>
+              <div><strong>Gemini 4 Hydrogen (Low→XHigh)</strong> <span class="text-emerald-300">[1.3–2.0x]</span> — Agile Gemini 4 coding; <em>XHigh</em> for single-module deep math.</div>
+              <div><strong>Gemini 4 Neon (Low→XHigh)</strong> <span class="text-sky-300">[2.0–3.0x]</span> — <strong>Best daily Q/C ROI</strong> for 80% of tickets &amp; approved plans.</div>
+              <div><strong>Gemini 4 Carbon (Low/Med/High)</strong> <span class="text-amber-300">[3.5–4.5x]</span> — Deep multi-file systems, DB/OAuth adapters &amp; complex state.</div>
+              <div><strong>Gemini 4 Argon (Low/Med/High)</strong> <span class="text-rose-300">[5.0–7.0x]</span> — Frontier architect; reserve for 1–2 turn <code>/backlog-plan</code>, then switch down!</div>
+            </div>
+            <div class="bg-slate-950/80 border border-amber-500/30 rounded-lg p-2.5 space-y-1.5">
+              <div class="font-bold text-amber-300">🟠 2. External Partner Models (Pool 2)</div>
+              <div><strong>GPT-OSS 120B (Medium)</strong> <span class="text-emerald-300">[1.5x]</span> — Cost-effective open-weight offload for boilerplate, scaffolding &amp; second-opinion reviews.</div>
+              <div><strong>Claude Sonnet 5.5 (Low/Med/High)</strong> <span class="text-sky-300">[2.5–4.0x]</span> — Surgical React/TS/UI code &amp; refactoring (External twin of Gemini 4 Neon/Carbon).</div>
+              <div><strong>Claude Opus 5.5 (Low/Med/High)</strong> <span class="text-rose-300">[6.0–9.0x]</span> — Heavyweight frontier; use strictly for 1-turn <code>/backlog-plan</code> or stubborn P0 root-cause audits.</div>
+            </div>
+            <div class="bg-slate-950/80 border border-fuchsia-500/30 rounded-lg p-2.5 space-y-1.5">
+              <div class="font-bold text-fuchsia-300">🟣 3. Google Orchestrators (Pool 1 · Swarms)</div>
+              <div><strong>Orchestrator (Neon)</strong> <span class="text-amber-300">[3.0–4.5x]</span> — Coordinates 2–3 parallel swarm workers on atomic sub-tickets.</div>
+              <div><strong>Orchestrator (Carbon)</strong> <span class="text-amber-400">[4.5–6.5x]</span> — Multi-module feature pipelines &amp; cross-layer parallel refactors.</div>
+              <div><strong>Orchestrator (Argon)</strong> <span class="text-rose-400">[6.5–10x]</span> — Large multi-repo migrations. <strong>NEVER</strong> leave active for single-file tickets!</div>
+            </div>
+          </div>
+        </div>
+      \`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeCreditAdvisor() {
+      const modal = document.getElementById('creditAdvisorModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
     async function kickoffTask(id) {
-      const prompt = '/backlog-start ' + id;
       const task = rawData.tasks.find(t => t.id === id);
+      const adv = computeTicketCreditAdvice(task);
+      const prompt = adv.effortPrefix + ' /backlog-start ' + id;
       if (task && task.status === 'todo') {
         task.status = 'in_progress';
         renderBoard();
@@ -1696,7 +2181,7 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
 
       const titleEl = document.getElementById('kickoffBannerTitle');
       if (titleEl && task) {
-        titleEl.textContent = '🚀 Ready to Kick Off [' + task.id + ']: ' + task.title + attachSuffix;
+        titleEl.textContent = '🚀 Ready to Kick Off [' + task.id + '] · Optimal Model: ' + adv.stageBGoogle + attachSuffix;
       }
 
       // Also invoke local native bridge (runs OS pbcopy + persists in_progress + unpacks .zip attachments)
@@ -1707,22 +2192,23 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       });
 
       if (bridgeRes && bridgeRes.ok) {
-        showToast('🚀 Copied "' + prompt + '" & marked ' + id + ' IN_PROGRESS' + attachSuffix + '! Paste (⌘V) in chat.');
+        showToast('🚀 Copied "' + prompt + '" (Best Model: ' + adv.stageBGoogle + ')! Paste (⌘V) in chat.');
       } else {
-        showToast('📋 Ready: "' + prompt + '" copied & selected in top bar — press ⌘V in Antigravity chat!');
+        showToast('📋 Ready: "' + prompt + '" copied — Best Model: ' + adv.stageBGoogle);
       }
     }
 
     async function planTask(id) {
-      const prompt = id ? ('/backlog-plan ' + id) : '/backlog-plan';
       const task = id ? rawData.tasks.find(t => t.id === id) : null;
+      const adv = computeTicketCreditAdvice(task);
+      const prompt = id ? ('/effort high /backlog-plan ' + id) : '/effort high /backlog-plan';
 
       copyTextToClipboard(prompt, true, id || '');
 
       const titleEl = document.getElementById('kickoffBannerTitle');
       if (titleEl) {
         titleEl.textContent = task
-          ? ('📐 Planning Mode Ready for [' + task.id + ']: ' + task.title + ' (task.md & implementation_plan.md synced)')
+          ? ('📐 Separate Planning Mode for [' + task.id + '] · Plan on: ' + adv.stageA)
           : '📐 Planning Mode Ready (task.md, implementation_plan.md & walkthrough.md synced)';
       }
 
@@ -1733,9 +2219,9 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       });
 
       if (bridgeRes && bridgeRes.ok) {
-        showToast('📐 Synced implementation_plan.md & task.md' + (id ? ' for [' + id + ']' : '') + ' & copied "' + prompt + '"! Paste (⌘V) in chat.');
+        showToast('📐 Synced plan & copied "' + prompt + '"! Plan on Argon/Carbon/Opus, then switch down to Neon/Sonnet.');
       } else {
-        showToast('📐 Copied "' + prompt + '" — press ⌘V in Antigravity chat (or run in Planning Mode)!');
+        showToast('📐 Copied "' + prompt + '" — press ⌘V in Antigravity chat!');
       }
     }
 
@@ -1833,9 +2319,287 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       }
     }
 
+    function getTaskTimestampScore(task, fallbackIdx) {
+      if (task.status === 'done' && task.completedAt) {
+        const t = Date.parse(task.completedAt);
+        if (!Number.isNaN(t)) return t;
+      }
+      if (task.createdAt) {
+        const t = Date.parse(task.createdAt);
+        if (!Number.isNaN(t)) return t;
+      }
+      const numMatch = String(task.id || '').match(/(\d+)/);
+      if (numMatch) {
+        return parseInt(numMatch[1], 10) * 1000 + fallbackIdx;
+      }
+      return fallbackIdx;
+    }
+
+    function sortColumnTasks(tasks, sortMode) {
+      if (!Array.isArray(tasks) || !sortMode || sortMode === 'custom') return tasks;
+      const indexed = tasks.map((t, idx) => ({ t, idx: rawData.tasks.indexOf(t), score: getTaskTimestampScore(t, idx) }));
+      indexed.sort((a, b) => {
+        if (a.score !== b.score) {
+          return sortMode === 'newest' ? (b.score - a.score) : (a.score - b.score);
+        }
+        return sortMode === 'newest' ? (b.idx - a.idx) : (a.idx - b.idx);
+      });
+      return indexed.map(x => x.t);
+    }
+
+    function getSortLabel(mode) {
+      if (mode === 'newest') return '⬇️ Newest → Oldest';
+      if (mode === 'oldest') return '⬆️ Oldest → Newest';
+      return '✋ Manual Order';
+    }
+
+    function saveColumnSortsState() {
+      try {
+        localStorage.setItem('agy_backlog_sorts_' + (rawData.project || 'default'), JSON.stringify(columnSorts));
+      } catch (e) {}
+      if (!rawData.meta) rawData.meta = {};
+      rawData.meta.columnSorts = { ...columnSorts };
+    }
+
+    function updateSortButtonsUI() {
+      ['todo', 'in_progress', 'done'].forEach(col => {
+        const btn = document.getElementById('sort-btn-' + col);
+        if (!btn) return;
+        const mode = columnSorts[col] || 'custom';
+        btn.textContent = getSortLabel(mode);
+        if (mode === 'newest' || mode === 'oldest') {
+          btn.className = 'text-[11px] bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-500/40 px-2 py-0.5 rounded font-semibold transition cursor-pointer';
+        } else {
+          btn.className = 'text-[11px] bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/60 px-2 py-0.5 rounded font-medium transition cursor-pointer';
+        }
+      });
+
+      const allSame = columnSorts.todo === columnSorts.in_progress && columnSorts.in_progress === columnSorts.done ? columnSorts.todo : '';
+      const gNew = document.getElementById('globalSortNewest');
+      const gOld = document.getElementById('globalSortOldest');
+      const gCus = document.getElementById('globalSortCustom');
+      if (gNew && gOld && gCus) {
+        gNew.className = 'text-xs px-1.5 py-0.5 rounded cursor-pointer ' + (allSame === 'newest' ? 'bg-blue-500/25 text-blue-200 font-bold border border-blue-500/40' : 'hover:bg-slate-700 text-slate-300');
+        gOld.className = 'text-xs px-1.5 py-0.5 rounded cursor-pointer ' + (allSame === 'oldest' ? 'bg-blue-500/25 text-blue-200 font-bold border border-blue-500/40' : 'hover:bg-slate-700 text-slate-300');
+        gCus.className = 'text-xs px-1.5 py-0.5 rounded cursor-pointer ' + (allSame === 'custom' ? 'bg-blue-500/25 text-blue-200 font-bold border border-blue-500/40' : 'hover:bg-slate-700 text-slate-300');
+      }
+    }
+
+    async function cycleColumnSort(col) {
+      const current = columnSorts[col] || 'custom';
+      const next = current === 'custom' ? 'newest' : current === 'newest' ? 'oldest' : 'custom';
+      columnSorts[col] = next;
+      saveColumnSortsState();
+      renderBoard();
+      const colTitle = col === 'todo' ? 'To-Do' : col === 'in_progress' ? 'In Progress' : 'Done';
+      showToast('⇅ Sorted ' + colTitle + ': ' + getSortLabel(next));
+      await callLocalBridge('/api/reorder', {
+        repoRoot: rawData.repoRoot,
+        orderedIds: rawData.tasks.map(t => t.id),
+        columnSorts
+      });
+    }
+
+    async function setAllColumnsSort(mode) {
+      columnSorts.todo = mode;
+      columnSorts.in_progress = mode;
+      columnSorts.done = mode;
+      saveColumnSortsState();
+      renderBoard();
+      showToast('⇅ All columns sorted: ' + getSortLabel(mode));
+      await callLocalBridge('/api/reorder', {
+        repoRoot: rawData.repoRoot,
+        orderedIds: rawData.tasks.map(t => t.id),
+        columnSorts
+      });
+    }
+
+    function getColumnKeyForTask(t) {
+      if (t.status === 'done') return 'done';
+      if (t.status === 'in_progress' || t.status === 'testing') return 'in_progress';
+      return 'todo';
+    }
+
+    function materializeColumnVisualOrder(colKey) {
+      if (columnSorts[colKey] && columnSorts[colKey] !== 'custom') {
+        const colTasks = sortColumnTasks(rawData.tasks.filter(t => getColumnKeyForTask(t) === colKey), columnSorts[colKey]);
+        let ptr = 0;
+        rawData.tasks = rawData.tasks.map(t => (getColumnKeyForTask(t) === colKey ? colTasks[ptr++] : t));
+        columnSorts[colKey] = 'custom';
+        saveColumnSortsState();
+      }
+    }
+
+    async function persistTaskOrderAndStatus(movedTask, toastMsg) {
+      lastTaskSignature = JSON.stringify((rawData.tasks || []).map(t => t.id + ':' + t.status + ':' + t.title + ':' + (t.waitingOn || '') + ':' + JSON.stringify(t.actionItems || [])));
+      renderBoard();
+      const bridgeRes = await callLocalBridge('/api/reorder', {
+        repoRoot: rawData.repoRoot,
+        orderedIds: rawData.tasks.map(t => t.id),
+        movedId: movedTask ? movedTask.id : '',
+        newStatus: movedTask ? movedTask.status : '',
+        columnSorts
+      });
+      if (toastMsg) {
+        showToast(toastMsg + (bridgeRes && bridgeRes.ok ? ' (saved to docs/backlog.json)' : ''));
+      }
+    }
+
+    async function moveTaskManual(taskId, direction, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      const task = rawData.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const colKey = getColumnKeyForTask(task);
+      materializeColumnVisualOrder(colKey);
+
+      const colTasks = rawData.tasks.filter(t => getColumnKeyForTask(t) === colKey);
+      const colIdx = colTasks.findIndex(t => t.id === taskId);
+      if (colIdx === -1) return;
+      const swapColIdx = direction === 'up' ? colIdx - 1 : colIdx + 1;
+      if (swapColIdx < 0 || swapColIdx >= colTasks.length) {
+        showToast('ℹ️ [' + taskId + '] is already at the ' + (direction === 'up' ? 'top' : 'bottom') + ' of this column.');
+        return;
+      }
+      const neighborTask = colTasks[swapColIdx];
+      const idxA = rawData.tasks.indexOf(task);
+      const idxB = rawData.tasks.indexOf(neighborTask);
+      if (idxA !== -1 && idxB !== -1) {
+        rawData.tasks[idxA] = neighborTask;
+        rawData.tasks[idxB] = task;
+        await persistTaskOrderAndStatus(task, (direction === 'up' ? '⬆️ Moved [' : '⬇️ Moved [') + taskId + '] ' + direction);
+      }
+    }
+
+    function handleDragStart(event, taskId) {
+      draggedTaskId = taskId;
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', taskId);
+      }
+      const cardEl = event.currentTarget;
+      if (cardEl) {
+        setTimeout(() => cardEl.classList.add('dragging'), 0);
+      }
+    }
+
+    function handleDragEnd(event) {
+      draggedTaskId = null;
+      document.querySelectorAll('.task-card').forEach(el => {
+        el.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+      });
+      document.querySelectorAll('[id^="wrap-"]').forEach(el => {
+        el.classList.remove('col-drop-active');
+      });
+    }
+
+    function handleCardDragOver(event, targetTaskId) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!draggedTaskId || draggedTaskId === targetTaskId) return;
+      const cardEl = event.currentTarget;
+      if (!cardEl) return;
+      const rect = cardEl.getBoundingClientRect();
+      const isTopHalf = (event.clientY - rect.top) < (rect.height / 2);
+      cardEl.classList.toggle('drag-over-top', isTopHalf);
+      cardEl.classList.toggle('drag-over-bottom', !isTopHalf);
+    }
+
+    function handleCardDragLeave(event) {
+      const cardEl = event.currentTarget;
+      if (cardEl) {
+        cardEl.classList.remove('drag-over-top', 'drag-over-bottom');
+      }
+    }
+
+    async function handleCardDrop(event, targetTaskId) {
+      event.preventDefault();
+      event.stopPropagation();
+      const cardEl = event.currentTarget;
+      const sourceId = draggedTaskId || (event.dataTransfer && event.dataTransfer.getData('text/plain'));
+      handleDragEnd(event);
+      if (!sourceId || sourceId === targetTaskId) return;
+
+      const sourceTask = rawData.tasks.find(t => t.id === sourceId);
+      const targetTask = rawData.tasks.find(t => t.id === targetTaskId);
+      if (!sourceTask || !targetTask) return;
+
+      const targetColKey = getColumnKeyForTask(targetTask);
+      materializeColumnVisualOrder(targetColKey);
+
+      let insertBefore = true;
+      if (cardEl) {
+        const rect = cardEl.getBoundingClientRect();
+        insertBefore = (event.clientY - rect.top) < (rect.height / 2);
+      }
+
+      const prevStatus = sourceTask.status;
+      if (targetColKey === 'done') sourceTask.status = 'done';
+      else if (targetColKey === 'in_progress') {
+        if (sourceTask.status !== 'testing') sourceTask.status = 'in_progress';
+      } else {
+        sourceTask.status = 'todo';
+      }
+
+      rawData.tasks = rawData.tasks.filter(t => t.id !== sourceId);
+      const targetIdx = rawData.tasks.findIndex(t => t.id === targetTaskId);
+      const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+      rawData.tasks.splice(Math.max(0, insertIdx), 0, sourceTask);
+
+      const statusNote = prevStatus !== sourceTask.status ? (' → ' + sourceTask.status.toUpperCase()) : '';
+      await persistTaskOrderAndStatus(
+        sourceTask,
+        '✋ Moved [' + sourceId + '] ' + (insertBefore ? 'before ' : 'after ') + '[' + targetTaskId + ']' + statusNote
+      );
+    }
+
+    function handleColumnDragOver(event, colKey) {
+      event.preventDefault();
+      const wrapEl = document.getElementById('wrap-' + colKey);
+      if (wrapEl) wrapEl.classList.add('col-drop-active');
+    }
+
+    function handleColumnDragLeave(event, colKey) {
+      const wrapEl = document.getElementById('wrap-' + colKey);
+      if (wrapEl && !wrapEl.contains(event.relatedTarget)) {
+        wrapEl.classList.remove('col-drop-active');
+      }
+    }
+
+    async function handleColumnDrop(event, colKey) {
+      event.preventDefault();
+      const sourceId = draggedTaskId || (event.dataTransfer && event.dataTransfer.getData('text/plain'));
+      handleDragEnd(event);
+      if (!sourceId) return;
+
+      const sourceTask = rawData.tasks.find(t => t.id === sourceId);
+      if (!sourceTask) return;
+
+      materializeColumnVisualOrder(colKey);
+      const prevStatus = sourceTask.status;
+      if (colKey === 'done') sourceTask.status = 'done';
+      else if (colKey === 'in_progress') {
+        if (sourceTask.status !== 'testing') sourceTask.status = 'in_progress';
+      } else {
+        sourceTask.status = 'todo';
+      }
+
+      rawData.tasks = rawData.tasks.filter(t => t.id !== sourceId);
+      rawData.tasks.push(sourceTask);
+
+      const colLabel = colKey === 'todo' ? 'To-Do' : colKey === 'in_progress' ? 'In Progress' : 'Done';
+      await persistTaskOrderAndStatus(
+        sourceTask,
+        '✋ Moved [' + sourceId + '] to ' + colLabel + (prevStatus !== sourceTask.status ? ' (' + sourceTask.status.toUpperCase() + ')' : '')
+      );
+    }
+
     function renderCard(task) {
       const isDone = task.status === 'done';
       const isInProgress = task.status === 'in_progress' || task.status === 'testing';
+      const colKey = isDone ? 'done' : isInProgress ? 'in_progress' : 'todo';
       const safeIdAttr = escapeAttr(task.id);
       const safeIdHtml = escapeHtml(task.id);
       const safeTitleHtml = escapeHtml(task.title);
@@ -1852,7 +2616,8 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
         ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
         : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
 
-      const typeBadge = task.type === 'feature' ? 'FEAT'
+      const typeBadge = (task.type === 'feature' || task.type === 'feat') ? 'FEAT'
+        : task.type === 'ux' ? 'UX'
         : task.type === 'bug' ? 'BUG'
         : task.type === 'qa' ? 'QA'
         : 'TASK';
@@ -1885,17 +2650,20 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
       \` : '';
 
       return \`
-        <div onclick="handleCardClick('\${safeIdAttr}', event)" class="bg-[var(--card,#1e293b)] border \${cardBorder} rounded-xl p-3 shadow-sm transition group \${isInProgress ? 'cursor-pointer' : ''}">
+        <div data-task-id="\${safeIdAttr}" data-col="\${colKey}" draggable="true" ondragstart="handleDragStart(event, '\${safeIdAttr}')" ondragover="handleCardDragOver(event, '\${safeIdAttr}')" ondragleave="handleCardDragLeave(event)" ondrop="handleCardDrop(event, '\${safeIdAttr}')" ondragend="handleDragEnd(event)" onclick="handleCardClick('\${safeIdAttr}', event)" class="task-card bg-[var(--card,#1e293b)] border \${cardBorder} rounded-xl p-3 shadow-sm transition group cursor-grab active:cursor-grabbing">
           <div class="flex items-start justify-between gap-2 mb-1.5">
             <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-slate-500 hover:text-slate-300 cursor-grab select-none text-xs px-0.5" title="Drag to reorder or move between columns">⠿</span>
               <span class="font-mono text-xs font-bold text-blue-400">\${safeIdHtml}</span>
               <span class="badge border rounded px-1.5 py-0.5 \${prioColor}">\${escapeHtml(task.priority || 'med')}</span>
               <span class="badge bg-slate-700/50 text-slate-300 rounded px-1.5 py-0.5">\${typeBadge}</span>
               \${isInProgress ? \`<span onclick="openTaskInspector('\${safeIdAttr}', event)" class="badge bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded px-1.5 py-0.5 cursor-pointer" title="Click to inspect Action Items">⏳ \${pendingActions.length} Action\${pendingActions.length === 1 ? '' : 's'}</span>\` : ''}
             </div>
             
-            <!-- Quick Status Toggles -->
-            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-1">
+            <!-- Quick Reorder & Status Toggles -->
+            <div class="opacity-80 group-hover:opacity-100 flex items-center gap-0.5">
+              <button onclick="moveTaskManual('\${safeIdAttr}', 'up', event)" class="text-xs text-slate-400 hover:text-white px-1 py-0.5 rounded hover:bg-slate-700/60" title="Move ticket up">↑</button>
+              <button onclick="moveTaskManual('\${safeIdAttr}', 'down', event)" class="text-xs text-slate-400 hover:text-white px-1 py-0.5 rounded hover:bg-slate-700/60" title="Move ticket down">↓</button>
               <button onclick="openTaskInspector('\${safeIdAttr}', event)" class="text-xs hover:text-amber-300 p-0.5" title="Inspect &amp; Assign Action Items">🎯</button>
               \${!isDone ? \`
                 <button onclick="triggerAttachFile('\${safeIdAttr}')" class="text-xs hover:text-indigo-400 p-0.5" title="Attach UX/UI .zip or context file">📎</button>
@@ -1920,6 +2688,16 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
           \` : ''}
 
           \${actionItemsPreviewHtml}
+
+          \${!isDone ? (() => {
+            const adv = computeTicketCreditAdvice(task);
+            return \`
+              <div onclick="openCreditAdvisor('\${safeIdAttr}', event)" class="mb-2 px-2 py-1 rounded-lg border text-[11px] font-medium flex items-center justify-between gap-1.5 cursor-pointer transition \${adv.pillClass}" title="Click for verbose Save Credits &amp; AGY Model ROI guide (Google, External, Orchestrators)">
+                <span class="truncate">\${escapeHtml(adv.shortBadge)}</span>
+                <span class="shrink-0 opacity-80">ROI ↗</span>
+              </div>
+            \`;
+          })() : ''}
 
           \${task.components && task.components.length > 0 ? \`
             <div class="flex flex-wrap gap-1 mb-2">
@@ -1965,6 +2743,7 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
 
     function renderBoard() {
       const q = document.getElementById('searchInput').value.toLowerCase();
+      updateSortButtonsUI();
       
       const filterTask = (t) => {
         const matchesQuery = !q || t.title.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q));
@@ -1977,13 +2756,13 @@ function generateReviewArtifactHtml(data, rootDir = REPO_ROOT) {
         return true;
       };
 
-      const todoTasks = rawData.tasks.filter(t => t.status === 'todo' && filterTask(t));
-      const inProgressTasks = rawData.tasks.filter(t => (t.status === 'in_progress' || t.status === 'testing') && filterTask(t));
-      const doneTasks = rawData.tasks.filter(t => t.status === 'done' && filterTask(t));
+      const todoTasks = sortColumnTasks(rawData.tasks.filter(t => t.status === 'todo' && filterTask(t)), columnSorts.todo);
+      const inProgressTasks = sortColumnTasks(rawData.tasks.filter(t => (t.status === 'in_progress' || t.status === 'testing') && filterTask(t)), columnSorts.in_progress);
+      const doneTasks = sortColumnTasks(rawData.tasks.filter(t => t.status === 'done' && filterTask(t)), columnSorts.done);
 
-      document.getElementById('col-todo').innerHTML = todoTasks.map(renderCard).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No to-do tasks</div>';
-      document.getElementById('col-inprogress').innerHTML = inProgressTasks.map(renderCard).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No active tasks in progress</div>';
-      document.getElementById('col-done').innerHTML = doneTasks.map(renderCard).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No completed tasks</div>';
+      document.getElementById('col-todo').innerHTML = todoTasks.map(renderCard).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No to-do tasks — drag a ticket here</div>';
+      document.getElementById('col-inprogress').innerHTML = inProgressTasks.map(renderCard).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No active tasks in progress — drag a ticket here</div>';
+      document.getElementById('col-done').innerHTML = doneTasks.map(renderCard).join('') || '<div class="text-xs text-slate-500 p-4 text-center">No completed tasks — drag a ticket here</div>';
 
       document.getElementById('count-todo').textContent = todoTasks.length;
       document.getElementById('count-inprogress').textContent = inProgressTasks.length;
@@ -2538,12 +3317,9 @@ function writePlanningArtifacts(data, rootDir = REPO_ROOT, brainDirs = [], force
   const planMd = generateImplementationPlanMd(data, rootDir);
   const walkthroughMd = generateWalkthroughMd(data, rootDir);
 
-  // 1. Always write canonical workspace copies in docs/planning/
+  // 1. Write workspace copies in docs/planning/ (preserving agent-authored brain artifacts if newer)
   const planningDir = path.join(rootDir, 'docs', 'planning');
   fs.mkdirSync(planningDir, { recursive: true });
-  fs.writeFileSync(path.join(planningDir, 'task.md'), taskMd, 'utf8');
-  fs.writeFileSync(path.join(planningDir, 'implementation_plan.md'), planMd, 'utf8');
-  fs.writeFileSync(path.join(planningDir, 'walkthrough.md'), walkthroughMd, 'utf8');
 
   // 2. Write to each matched Antigravity brain directory (preserving custom manual artifacts unless synced or forced)
   const canWriteBrainArtifact = (filePath) => {
@@ -2555,6 +3331,10 @@ function writePlanningArtifacts(data, rootDir = REPO_ROOT, brainDirs = [], force
       return true;
     }
   };
+
+  let customTaskMd = null;
+  let customPlanMd = null;
+  let customWalkMd = null;
 
   const nowIso = new Date().toISOString();
   for (const brainDir of brainDirs) {
@@ -2576,6 +3356,8 @@ function writePlanningArtifacts(data, rootDir = REPO_ROOT, brainDirs = [], force
           ),
           'utf8'
         );
+      } else if (!customTaskMd && fs.existsSync(bTaskPath)) {
+        customTaskMd = fs.readFileSync(bTaskPath, 'utf8');
       }
 
       const bPlanPath = path.join(brainDir, 'implementation_plan.md');
@@ -2595,6 +3377,8 @@ function writePlanningArtifacts(data, rootDir = REPO_ROOT, brainDirs = [], force
           ),
           'utf8'
         );
+      } else if (!customPlanMd && fs.existsSync(bPlanPath)) {
+        customPlanMd = fs.readFileSync(bPlanPath, 'utf8');
       }
 
       const bWalkPath = path.join(brainDir, 'walkthrough.md');
@@ -2614,9 +3398,15 @@ function writePlanningArtifacts(data, rootDir = REPO_ROOT, brainDirs = [], force
           ),
           'utf8'
         );
+      } else if (!customWalkMd && fs.existsSync(bWalkPath)) {
+        customWalkMd = fs.readFileSync(bWalkPath, 'utf8');
       }
     } catch {}
   }
+
+  fs.writeFileSync(path.join(planningDir, 'task.md'), customTaskMd || taskMd, 'utf8');
+  fs.writeFileSync(path.join(planningDir, 'implementation_plan.md'), customPlanMd || planMd, 'utf8');
+  fs.writeFileSync(path.join(planningDir, 'walkthrough.md'), customWalkMd || walkthroughMd, 'utf8');
 }
 
 // Write the Review Pane artifacts to docs/backlog.html, docs/planning/*.md, and all matched conversation brain folders
@@ -2648,28 +3438,47 @@ function writeReviewPaneArtifacts(data, rootDir = REPO_ROOT, forceOverwriteBrain
     const htmlMetaPath = path.join(brainDir, 'backlog.html.metadata.json');
     const mdPath = path.join(brainDir, 'backlog-board.md');
     const mdMetaPath = path.join(brainDir, 'backlog-board.md.metadata.json');
+    const planMetaPath = path.join(brainDir, 'implementation_plan.md.metadata.json');
 
-    fs.writeFileSync(htmlPath, htmlContent, 'utf8');
-    fs.writeFileSync(htmlMetaPath, JSON.stringify({
-      summary: `Interactive ${displayProject} Backlog & Sprint Board for zero-token task capture and frugal agent execution.`,
-      userFacing: true,
-      requestFeedback: false,
-      updatedAt: new Date().toISOString()
-    }, null, 2), 'utf8');
+    const htmlChanged = !fs.existsSync(htmlPath) || fs.readFileSync(htmlPath, 'utf8') !== htmlContent;
+    if (htmlChanged || !fs.existsSync(htmlMetaPath)) {
+      fs.writeFileSync(htmlPath, htmlContent, 'utf8');
+      fs.writeFileSync(htmlMetaPath, JSON.stringify({
+        summary: `Interactive ${displayProject} Backlog & Sprint Board for zero-token task capture and frugal agent execution.`,
+        userFacing: true,
+        requestFeedback: false,
+        updatedAt: new Date().toISOString()
+      }, null, 2), 'utf8');
+    }
 
-    fs.writeFileSync(mdPath, mdContent, 'utf8');
-    fs.writeFileSync(mdMetaPath, JSON.stringify({
-      summary: `Markdown Backlog and Sprint Status board for ${displayProject} linking to docs/backlog.json and ${path.relative(rootDir, boardPath)}.`,
-      userFacing: true,
-      requestFeedback: true,
-      updatedAt: new Date().toISOString()
-    }, null, 2), 'utf8');
+    const mdChanged = !fs.existsSync(mdPath) || fs.readFileSync(mdPath, 'utf8') !== mdContent;
+    if (mdChanged || !fs.existsSync(mdMetaPath)) {
+      fs.writeFileSync(mdPath, mdContent, 'utf8');
+      fs.writeFileSync(mdMetaPath, JSON.stringify({
+        summary: `Markdown Backlog and Sprint Status board for ${displayProject} linking to docs/backlog.json and ${path.relative(rootDir, boardPath)}.`,
+        userFacing: true,
+        requestFeedback: false,
+        updatedAt: new Date().toISOString()
+      }, null, 2), 'utf8');
+    }
+
+    // Ensure implementation_plan.md retains the newest updatedAt timestamp when requestFeedback is true
+    // so the Antigravity UI "Proceed" button is never overshadowed by background board renders.
+    if (fs.existsSync(planMetaPath) && (htmlChanged || mdChanged || forceOverwriteBrainPlan)) {
+      try {
+        const planMeta = JSON.parse(fs.readFileSync(planMetaPath, 'utf8'));
+        if (planMeta && planMeta.requestFeedback) {
+          planMeta.updatedAt = new Date(Date.now() + 50).toISOString();
+          fs.writeFileSync(planMetaPath, JSON.stringify(planMeta, null, 2), 'utf8');
+        }
+      } catch {}
+    }
 
     console.log(`   - [${path.basename(brainDir)}] file://${htmlPath} (+ task.md, implementation_plan.md, walkthrough.md)`);
   }
 }
 
-const BRIDGE_VERSION = '1.5.0';
+const BRIDGE_VERSION = '1.6.0';
 
 function spawnBridgeDaemon() {
   try {
@@ -2835,6 +3644,9 @@ function startBridgeServer(port = DEFAULT_PORT) {
           return { status: 404, payload: { ok: false, error: 'Task not found' } };
         }
         task.status = newStatus;
+        if (newStatus === 'done' && !task.completedAt) {
+          task.completedAt = new Date().toISOString();
+        }
         if (newStatus === 'in_progress') {
           ensureTaskActionItems(task);
           unpackTaskAttachments(task, targetRoot);
@@ -2843,6 +3655,44 @@ function startBridgeServer(port = DEFAULT_PORT) {
         renderMigrationBoard(data, targetRoot);
         writeReviewPaneArtifacts(data, targetRoot);
         return { status: 200, payload: { ok: true, id: task.id, status: task.status } };
+      }
+
+      if (endpoint === '/api/reorder') {
+        const data = loadBacklog(targetRoot);
+        const movedId = String(body.movedId || '').trim();
+        const newStatus = String(body.newStatus || '').trim().toLowerCase();
+        if (movedId && newStatus) {
+          const movedTask = data.tasks.find(t => t.id.toLowerCase() === movedId.toLowerCase());
+          if (movedTask) {
+            movedTask.status = newStatus;
+            if (newStatus === 'done' && !movedTask.completedAt) {
+              movedTask.completedAt = new Date().toISOString();
+            }
+            if (newStatus === 'in_progress') {
+              ensureTaskActionItems(movedTask);
+              unpackTaskAttachments(movedTask, targetRoot);
+            }
+          }
+        }
+        if (Array.isArray(body.orderedIds) && body.orderedIds.length > 0) {
+          const idRank = new Map(body.orderedIds.map((id, idx) => [String(id).toLowerCase(), idx]));
+          data.tasks.sort((a, b) => {
+            const ra = idRank.has(String(a.id).toLowerCase()) ? idRank.get(String(a.id).toLowerCase()) : 999999;
+            const rb = idRank.has(String(b.id).toLowerCase()) ? idRank.get(String(b.id).toLowerCase()) : 999999;
+            return ra - rb;
+          });
+        }
+        if (body.columnSorts && typeof body.columnSorts === 'object') {
+          if (!data.meta) data.meta = {};
+          data.meta.columnSorts = {
+            ...(data.meta.columnSorts || {}),
+            ...body.columnSorts
+          };
+        }
+        saveBacklog(data, targetRoot);
+        renderMigrationBoard(data, targetRoot);
+        writeReviewPaneArtifacts(data, targetRoot);
+        return { status: 200, payload: { ok: true, count: data.tasks.length, columnSorts: (data.meta && data.meta.columnSorts) || {} } };
       }
 
       if (endpoint === '/api/action-items') {
@@ -3064,8 +3914,11 @@ Usage:
   npm run backlog attach <id> <file1> [file2 ...] [--no-copy]
   npm run backlog unpack <id> [optional_extra_files...]
   npm run backlog actions <id> [--waiting "<summary>"] [--add "<item>" --owner <user|antigravity>] [--done <item_id_or_index>]
-  npm run backlog plan [<id> ...]
+  npm run backlog plan [<id> | "<new_title>"] [--from-plan [path]] [--split ["<sub1>|<sub2>"]]
+  npm run backlog split <parent_id> "<sub_title_1>" ["<sub_title_2>" ...] [--priority <high|medium|low>] [--type <feature|bug|qa|refactor>]
   npm run backlog status <id> <todo|in_progress|testing|done>
+  npm run backlog move <id> <up|down|top|bottom|before:ID|after:ID>
+  npm run backlog sort <todo|in_progress|done|all> <newest|oldest|custom>
   npm run backlog start <id>
   npm run backlog done <id>
   npm run backlog render
@@ -3133,12 +3986,7 @@ function main() {
   }
 
   if (command === 'add') {
-    const title = args[1];
-    if (!title) {
-      console.error('❌ Please specify a title: npm run backlog add "Feature title"');
-      process.exit(1);
-    }
-
+    let title = '';
     let id = null;
     let type = 'feature';
     let priority = 'medium';
@@ -3146,16 +3994,33 @@ function main() {
     let components = [];
     let rawAttachments = [];
 
-    for (let i = 2; i < args.length; i++) {
+    for (let i = 1; i < args.length; i++) {
       if (args[i] === '--id' && args[i + 1]) id = args[++i];
+      else if (args[i] === '--title' && args[i + 1]) title = args[++i];
       else if (args[i] === '--type' && args[i + 1]) type = args[++i];
       else if (args[i] === '--priority' && args[i + 1]) priority = args[++i];
-      else if (args[i] === '--desc' && args[i + 1]) desc = args[++i];
+      else if ((args[i] === '--desc' || args[i] === '--description') && args[i + 1]) desc = args[++i];
       else if (args[i] === '--components' && args[i + 1]) components = args[++i].split(',').map(s => s.trim()).filter(Boolean);
       else if ((args[i] === '--attach' || args[i] === '--attachments') && args[i + 1]) {
         rawAttachments.push(...args[++i].split(',').map(s => s.trim()).filter(Boolean));
+      } else if (!args[i].startsWith('--') && !title) {
+        title = args[i];
       }
     }
+
+    if (!title || title.startsWith('--')) {
+      console.error('❌ Please specify a title: npm run backlog add "Feature title" (or --title "Feature title")');
+      process.exit(1);
+    }
+
+    const normPrio = String(priority || 'medium').toLowerCase();
+    if (normPrio === 'p0' || normPrio === 'p1' || normPrio === 'high') priority = 'high';
+    else if (normPrio === 'p2' || normPrio === 'med' || normPrio === 'medium') priority = 'medium';
+    else if (normPrio === 'p3' || normPrio === 'low') priority = 'low';
+
+    const normType = String(type || 'feature').toLowerCase();
+    if (normType === 'feat') type = 'feature';
+    else if (normType === 'fix') type = 'bug';
 
     if (!id) {
       const maxNum = data.tasks.reduce((max, t) => {
@@ -3165,24 +4030,40 @@ function main() {
       id = `FEAT-${maxNum + 1}`;
     }
 
-    const newTask = {
-      id,
-      type,
-      title,
-      status: 'todo',
-      priority,
-      components,
-      attachments: [],
-      description: desc,
-      spec: desc,
-      acceptanceCriteria: []
-    };
+    const existingIdx = data.tasks.findIndex(t => String(t.id).toLowerCase() === String(id).toLowerCase());
+    let newTask;
+    if (existingIdx !== -1) {
+      newTask = data.tasks[existingIdx];
+      newTask.title = title;
+      newTask.type = type;
+      newTask.priority = priority;
+      if (components.length > 0) newTask.components = components;
+      if (desc) {
+        newTask.description = desc;
+        newTask.spec = desc;
+      }
+      if (!Array.isArray(newTask.attachments)) newTask.attachments = [];
+      if (!Array.isArray(newTask.acceptanceCriteria)) newTask.acceptanceCriteria = [];
+    } else {
+      newTask = {
+        id,
+        type,
+        title,
+        status: 'todo',
+        priority,
+        components,
+        attachments: [],
+        description: desc,
+        spec: desc,
+        acceptanceCriteria: []
+      };
+      data.tasks.push(newTask);
+    }
 
     if (rawAttachments.length > 0) {
       attachFilesToTask(newTask, rawAttachments, REPO_ROOT, true);
     }
 
-    data.tasks.push(newTask);
     saveBacklog(data);
     renderMigrationBoard(data);
     writeReviewPaneArtifacts(data);
@@ -3276,6 +4157,90 @@ function main() {
     return;
   }
 
+  if (command === 'move') {
+    const id = args[1];
+    const target = String(args[2] || '').trim().toLowerCase();
+    if (!id || !target) {
+      console.error('❌ Usage: npm run backlog move <id> <up|down|top|bottom|before:ID|after:ID>');
+      process.exit(1);
+    }
+    const idx = data.tasks.findIndex(t => t.id.toLowerCase() === id.toLowerCase());
+    if (idx === -1) {
+      console.error(`❌ Task ${id} not found in backlog.`);
+      process.exit(1);
+    }
+    const task = data.tasks[idx];
+    const colOf = (t) => (t.status === 'done' ? 'done' : (t.status === 'in_progress' || t.status === 'testing') ? 'in_progress' : 'todo');
+    const colKey = colOf(task);
+    if (!data.meta) data.meta = {};
+    if (!data.meta.columnSorts) data.meta.columnSorts = {};
+    data.meta.columnSorts[colKey] = 'custom';
+
+    const colTasks = data.tasks.filter(t => colOf(t) === colKey);
+    const colIdx = colTasks.findIndex(t => t.id === task.id);
+
+    if (target === 'up' && colIdx > 0) {
+      const neighbor = colTasks[colIdx - 1];
+      const nIdx = data.tasks.indexOf(neighbor);
+      data.tasks[idx] = neighbor;
+      data.tasks[nIdx] = task;
+    } else if (target === 'down' && colIdx < colTasks.length - 1) {
+      const neighbor = colTasks[colIdx + 1];
+      const nIdx = data.tasks.indexOf(neighbor);
+      data.tasks[idx] = neighbor;
+      data.tasks[nIdx] = task;
+    } else if (target === 'top') {
+      data.tasks.splice(idx, 1);
+      const firstColIdx = data.tasks.findIndex(t => colOf(t) === colKey);
+      data.tasks.splice(firstColIdx === -1 ? 0 : firstColIdx, 0, task);
+    } else if (target === 'bottom') {
+      data.tasks.splice(idx, 1);
+      data.tasks.push(task);
+    } else if (target.startsWith('before:') || target.startsWith('after:')) {
+      const [mode, refId] = target.split(':');
+      const refTask = data.tasks.find(t => t.id.toLowerCase() === String(refId || '').toLowerCase());
+      if (!refTask) {
+        console.error(`❌ Reference task ${refId} not found.`);
+        process.exit(1);
+      }
+      data.tasks.splice(idx, 1);
+      const refIdx = data.tasks.indexOf(refTask);
+      data.tasks.splice(mode === 'before' ? refIdx : refIdx + 1, 0, task);
+    }
+
+    saveBacklog(data);
+    renderMigrationBoard(data);
+    writeReviewPaneArtifacts(data);
+    ensureDaemonRunning();
+    console.log(`\n✋ Moved [${task.id}] (${target}) and saved manual order to docs/backlog.json.`);
+    return;
+  }
+
+  if (command === 'sort') {
+    const colArg = String(args[1] || 'all').trim().toLowerCase();
+    const dirArg = String(args[2] || 'newest').trim().toLowerCase();
+    const mode = (dirArg === 'oldest' || dirArg === 'asc') ? 'oldest'
+      : (dirArg === 'custom' || dirArg === 'manual') ? 'custom'
+      : 'newest';
+
+    if (!data.meta) data.meta = {};
+    if (!data.meta.columnSorts) data.meta.columnSorts = { todo: 'custom', in_progress: 'custom', done: 'custom' };
+
+    const cols = colArg === 'all' ? ['todo', 'in_progress', 'done'] : [colArg === 'inprogress' ? 'in_progress' : colArg];
+    for (const c of cols) {
+      if (['todo', 'in_progress', 'done'].includes(c)) {
+        data.meta.columnSorts[c] = mode;
+      }
+    }
+
+    saveBacklog(data);
+    renderMigrationBoard(data);
+    writeReviewPaneArtifacts(data);
+    ensureDaemonRunning();
+    console.log(`\n⇅ Sorted column(s) [${cols.join(', ')}] -> ${mode.toUpperCase()} in docs/backlog.json & backlog.html.`);
+    return;
+  }
+
   if (command === 'start') {
     const rawIds = args.slice(1).join(' ').split(/[\s,]+/).filter(Boolean);
     if (rawIds.length === 0) {
@@ -3333,6 +4298,10 @@ function main() {
       if (task) {
         task.status = 'done';
         task.completedAt = new Date().toISOString();
+        if (Array.isArray(task.actionItems)) {
+          task.actionItems.forEach(item => { item.done = true; });
+        }
+        delete task.waitingOn;
         matchedTasks.push(task);
       } else {
         console.warn(`⚠️  Task ${rawId} not found in backlog.`);
@@ -3353,6 +4322,12 @@ function main() {
     saveBacklog(data);
     renderMigrationBoard(data);
     writeReviewPaneArtifacts(data, REPO_ROOT, true);
+    try {
+      const livingDocsScript = path.join(REPO_ROOT, 'scripts', 'sync-living-docs.mjs');
+      if (fs.existsSync(livingDocsScript)) {
+        spawnSync(process.execPath, [livingDocsScript, '--quiet'], { cwd: REPO_ROOT, stdio: 'ignore' });
+      }
+    } catch {}
     ensureDaemonRunning();
 
     const idList = matchedTasks.map(t => t.id).join(', ');
@@ -3436,14 +4411,263 @@ function main() {
   }
 
   if (command === 'plan') {
-    const rawIds = args.slice(1).join(' ').split(/[\s,]+/).filter(Boolean);
+    const rawArgs = args.slice(1);
+    const hasFromPlan = rawArgs.includes('--from-plan') || rawArgs.includes('--sync-plan');
+    const hasSplitFlag = rawArgs.includes('--split');
+    let explicitPlanPath = '';
+    let splitSpec = '';
+    let newType = 'feature';
+    let newPriority = 'high';
+    let newDesc = '';
+    let newComponents = [];
+    const positional = [];
+
+    for (let i = 0; i < rawArgs.length; i++) {
+      const a = rawArgs[i];
+      if (a === '--from-plan' || a === '--sync-plan') {
+        if (rawArgs[i + 1] && !rawArgs[i + 1].startsWith('--')) {
+          explicitPlanPath = rawArgs[++i];
+        }
+      } else if (a === '--split') {
+        if (rawArgs[i + 1] && !rawArgs[i + 1].startsWith('--') && rawArgs[i + 1].includes('|')) {
+          splitSpec = rawArgs[++i];
+        }
+      } else if (a === '--type' && rawArgs[i + 1]) {
+        newType = rawArgs[++i];
+      } else if (a === '--priority' && rawArgs[i + 1]) {
+        newPriority = rawArgs[++i];
+      } else if (a === '--desc' && rawArgs[i + 1]) {
+        newDesc = rawArgs[++i];
+      } else if (a === '--components' && rawArgs[i + 1]) {
+        newComponents = rawArgs[++i].split(',').map(s => s.trim()).filter(Boolean);
+      } else if (a === '--force') {
+        // handled below
+      } else if (!a.startsWith('--')) {
+        positional.push(a);
+      }
+    }
+
+    const nextSeqId = (prefix = 'FEAT') => {
+      const re = new RegExp(`^${prefix}-(\\d+)$`, 'i');
+      const maxNum = data.tasks.reduce((max, t) => {
+        const m = String(t.id).match(re);
+        return m ? Math.max(max, parseInt(m[1], 10)) : max;
+      }, 100);
+      return `${prefix.toUpperCase()}-${maxNum + 1}`;
+    };
+
+    const splitParentIntoSubtasks = (parentTask, subSpecs) => {
+      const createdChildren = [];
+      const prefix = String(parentTask.id).startsWith('BUG-') ? 'BUG' : 'FEAT';
+      ensureTaskActionItems(parentTask);
+      for (const specItem of subSpecs) {
+        const subTitle = typeof specItem === 'string' ? specItem.trim() : String(specItem.title || '').trim();
+        if (!subTitle) continue;
+        const existingChild = data.tasks.find(
+          t => t.parentId === parentTask.id && t.title.toLowerCase() === subTitle.toLowerCase()
+        );
+        if (existingChild) {
+          createdChildren.push(existingChild);
+          continue;
+        }
+        const childId = (typeof specItem === 'object' && specItem.id && !data.tasks.some(t => t.id.toLowerCase() === specItem.id.toLowerCase()))
+          ? specItem.id.toUpperCase()
+          : nextSeqId(prefix);
+        const childComps = (typeof specItem === 'object' && Array.isArray(specItem.components) && specItem.components.length > 0)
+          ? specItem.components
+          : parentTask.components || [];
+        const childDesc = (typeof specItem === 'object' && specItem.description)
+          ? specItem.description
+          : `Sub-ticket split from [${parentTask.id}] ${parentTask.title}: ${subTitle}`;
+        const childTask = {
+          id: childId,
+          parentId: parentTask.id,
+          type: parentTask.type || newType,
+          title: subTitle,
+          status: 'todo',
+          priority: parentTask.priority || newPriority,
+          components: childComps,
+          attachments: [],
+          description: childDesc,
+          spec: childDesc,
+          acceptanceCriteria: [
+            `Complete implementation for ${subTitle}`,
+            `Verify deterministic tests and lint checks for [${childId}]`
+          ]
+        };
+        ensureTaskActionItems(childTask);
+        data.tasks.push(childTask);
+        createdChildren.push(childTask);
+
+        const linkText = `[${childId}] ${subTitle}`;
+        if (!parentTask.actionItems.some(a => a.text.includes(childId))) {
+          parentTask.actionItems.push({
+            id: `${parentTask.id}-ACT-${parentTask.actionItems.length + 1}`,
+            text: linkText,
+            owner: 'antigravity',
+            done: false
+          });
+        }
+      }
+      return createdChildren;
+    };
+
     const matchedTasks = [];
-    for (const rawId of rawIds) {
-      const task = data.tasks.find(t => t.id.toLowerCase() === rawId.toLowerCase());
-      if (task) {
-        matchedTasks.push(task);
+
+    // Mode A: Auto-ingest & create/split tickets from implementation_plan.md (`--from-plan`)
+    if (hasFromPlan) {
+      let planFile = explicitPlanPath ? resolveAttachmentPath(explicitPlanPath, REPO_ROOT) : '';
+      if (!planFile || !fs.existsSync(planFile)) {
+        const brainDirs = findWorkspaceBrainDirs(REPO_ROOT);
+        const brainCandidate = brainDirs.length > 0 ? path.join(brainDirs[0], 'implementation_plan.md') : '';
+        const wsCandidate = path.join(REPO_ROOT, 'docs', 'planning', 'implementation_plan.md');
+        if (brainCandidate && fs.existsSync(brainCandidate)) planFile = brainCandidate;
+        else if (fs.existsSync(wsCandidate)) planFile = wsCandidate;
+      }
+
+      if (planFile && fs.existsSync(planFile)) {
+        const planRaw = fs.readFileSync(planFile, 'utf8');
+        const h1Match = planRaw.match(/^#\s+([^\n]+)/m);
+        let rawPlanTitle = h1Match ? h1Match[1].replace(/^Implementation Plan\s*[—:-]\s*/i, '').replace(/`/g, '').trim() : 'Planned Implementation';
+        const goalSecMatch = planRaw.match(/^##\s+(?:1\.\s+)?Goal Description\s*\r?\n([\s\S]*?)(?=\r?\n##\s+|\r?\n---\s*$|$)/im);
+        const goalText = goalSecMatch
+          ? goalSecMatch[1].split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('>') && !l.startsWith('<!--')).join(' ').slice(0, 320)
+          : rawPlanTitle;
+
+        const fileMatches = new Set();
+        const fileLinkRe = /\[[^\]]+\]\(file:\/\/([^)#\s]+)(?:#[^)]*)?\)/g;
+        let fm;
+        while ((fm = fileLinkRe.exec(planRaw)) !== null) {
+          const absP = fm[1];
+          if (absP.startsWith(REPO_ROOT + '/')) {
+            const relP = path.relative(REPO_ROOT, absP);
+            if (!relP.startsWith('.gemini') && !relP.startsWith('docs/planning/')) fileMatches.add(relP);
+          }
+        }
+        const parsedComponents = Array.from(fileMatches).slice(0, 15);
+
+        // Extract ### subsections under ## Proposed Changes
+        const propSecMatch = planRaw.match(/^##\s+(?:3\.\s+)?Proposed Changes\s*\r?\n([\s\S]*?)(?=\r?\n##\s+(?:4\.\s+)?Verification Plan|\r?\n##\s+|\s*$)/im);
+        const propBody = propSecMatch ? propSecMatch[1] : '';
+        const subSections = [];
+        const h3Re = /^###\s+(?:\d+\.\s*)?([^\n]+)\r?\n([\s\S]*?)(?=^###\s+|$)/gm;
+        let sm;
+        while ((sm = h3Re.exec(propBody)) !== null) {
+          const secHeading = sm[1].replace(/`/g, '').trim();
+          const secBody = sm[2] || '';
+          const secFiles = [];
+          let sfm;
+          const secFileRe = /\[[^\]]+\]\(file:\/\/([^)#\s]+)(?:#[^)]*)?\)/g;
+          while ((sfm = secFileRe.exec(secBody)) !== null) {
+            if (sfm[1].startsWith(REPO_ROOT + '/')) {
+              const relP = path.relative(REPO_ROOT, sfm[1]);
+              if (!secFiles.includes(relP)) secFiles.push(relP);
+            }
+          }
+          const explicitIdMatch = secHeading.match(/\b((?:FEAT|BUG|QA|REFACTOR)-\d+)\b/i);
+          subSections.push({
+            id: explicitIdMatch ? explicitIdMatch[1].toUpperCase() : null,
+            title: secHeading.replace(/^\[?(?:FEAT|BUG|QA|REFACTOR)-\d+\]?\s*[:—-]?\s*/i, '').trim() || secHeading,
+            components: secFiles,
+            description: secBody.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('####') && !l.startsWith('---')).join(' ').slice(0, 220)
+          });
+        }
+
+        // Determine if an open ticket already matches
+        const idInTitle = rawPlanTitle.match(/\b((?:FEAT|BUG|QA|REFACTOR)-\d+)\b/i);
+        let primaryTask = null;
+        if (idInTitle) {
+          const candidate = data.tasks.find(t => t.id.toLowerCase() === idInTitle[1].toLowerCase());
+          if (candidate && candidate.status !== 'done') {
+            primaryTask = candidate;
+          }
+        }
+        if (!primaryTask) {
+          const cleanTitle = rawPlanTitle.replace(/^\[?(?:FEAT|BUG|QA|REFACTOR)-\d+\]?\s*(?:Enhancement)?\s*[:—-]?\s*/i, '').trim() || rawPlanTitle;
+          primaryTask = data.tasks.find(t => t.status !== 'done' && t.title.toLowerCase() === cleanTitle.toLowerCase());
+          if (!primaryTask) {
+            const newId = (idInTitle && !data.tasks.some(t => t.id.toLowerCase() === idInTitle[1].toLowerCase()))
+              ? idInTitle[1].toUpperCase()
+              : nextSeqId(newType === 'bug' ? 'BUG' : 'FEAT');
+            primaryTask = {
+              id: newId,
+              type: newType,
+              title: cleanTitle,
+              status: 'todo',
+              priority: newPriority,
+              components: parsedComponents.length > 0 ? parsedComponents : newComponents,
+              attachments: [],
+              description: goalText,
+              spec: goalText,
+              acceptanceCriteria: subSections.map(s => s.title)
+            };
+            ensureTaskActionItems(primaryTask);
+            data.tasks.push(primaryTask);
+            console.log(`  ✓ Auto-created backlog ticket [${primaryTask.id}]: "${primaryTask.title}" from implementation_plan.md`);
+          }
+        }
+        matchedTasks.push(primaryTask);
+
+        if ((hasSplitFlag || subSections.filter(s => s.id && s.id !== primaryTask.id).length > 1) && subSections.length > 1) {
+          const children = splitParentIntoSubtasks(primaryTask, subSections);
+          for (const ch of children) {
+            if (!matchedTasks.includes(ch)) matchedTasks.push(ch);
+          }
+          console.log(`  ✓ Split [${primaryTask.id}] into ${children.length} atomic backlog sub-ticket(s): ${children.map(c => c.id).join(', ')}`);
+        }
+      }
+    }
+
+    // Mode B: Positional IDs or New Ticket Title passed to `npm run backlog plan`
+    if (positional.length > 0) {
+      const joined = positional.join(' ').trim();
+      const looksLikeIdList = /^((?:FEAT|BUG|QA|REFACTOR|TASK)-\d+[\s,]*)+$/i.test(joined);
+      if (looksLikeIdList) {
+        const rawIds = joined.split(/[\s,]+/).filter(Boolean);
+        for (const rawId of rawIds) {
+          const task = data.tasks.find(t => t.id.toLowerCase() === rawId.toLowerCase());
+          if (task) {
+            if (!matchedTasks.includes(task)) matchedTasks.push(task);
+          } else {
+            console.warn(`⚠️  Task ${rawId} not found in backlog.`);
+          }
+        }
       } else {
-        console.warn(`⚠️  Task ${rawId} not found in backlog.`);
+        // Treat `positional` as a new feature/bug title to auto-create in docs/backlog.json!
+        const newTitle = joined;
+        let task = data.tasks.find(t => t.status !== 'done' && t.title.toLowerCase() === newTitle.toLowerCase());
+        if (!task) {
+          const newId = nextSeqId(newType === 'bug' ? 'BUG' : 'FEAT');
+          task = {
+            id: newId,
+            type: newType,
+            title: newTitle,
+            status: 'todo',
+            priority: newPriority,
+            components: newComponents,
+            attachments: [],
+            description: newDesc || newTitle,
+            spec: newDesc || newTitle,
+            acceptanceCriteria: []
+          };
+          ensureTaskActionItems(task);
+          data.tasks.push(task);
+          console.log(`\n✅ Auto-created backlog ticket [${task.id}]: "${task.title}"`);
+        }
+        if (!matchedTasks.includes(task)) matchedTasks.push(task);
+      }
+    }
+
+    // Mode C: If `--split "Sub 1|Sub 2"` was passed along with a matched ticket
+    if (splitSpec && matchedTasks.length > 0) {
+      const parentTask = matchedTasks[0];
+      const parts = splitSpec.split('|').map(s => s.trim()).filter(Boolean);
+      if (parts.length > 0) {
+        const children = splitParentIntoSubtasks(parentTask, parts);
+        for (const ch of children) {
+          if (!matchedTasks.includes(ch)) matchedTasks.push(ch);
+        }
+        console.log(`  ✓ Split [${parentTask.id}] into ${children.length} atomic sub-ticket(s): ${children.map(c => c.id).join(', ')}`);
       }
     }
 
@@ -3458,6 +4682,12 @@ function main() {
     saveBacklog(data);
     renderMigrationBoard(data);
     writeReviewPaneArtifacts(data, REPO_ROOT, true);
+    try {
+      const livingDocsScript = path.join(REPO_ROOT, 'scripts', 'sync-living-docs.mjs');
+      if (fs.existsSync(livingDocsScript)) {
+        spawnSync(process.execPath, [livingDocsScript, '--quiet'], { cwd: REPO_ROOT, stdio: 'ignore' });
+      }
+    } catch {}
     ensureDaemonRunning();
 
     const idList = matchedTasks.map(t => t.id).join(', ');
@@ -3474,6 +4704,104 @@ function main() {
     return;
   }
 
+  if (command === 'split') {
+    const parentId = args[1];
+    if (!parentId) {
+      console.error('❌ Usage: npm run backlog split <parent_id> "<sub_title_1>" ["<sub_title_2>" ...] [--priority <high|medium|low>] [--type <feature|bug|qa|refactor>]');
+      process.exit(1);
+    }
+    const parentTask = data.tasks.find(t => t.id.toLowerCase() === parentId.toLowerCase());
+    if (!parentTask) {
+      console.error(`❌ Parent task ${parentId} not found in docs/backlog.json.`);
+      process.exit(1);
+    }
+
+    let splitPrio = parentTask.priority || 'high';
+    let splitType = parentTask.type || 'feature';
+    const subTitles = [];
+    for (let i = 2; i < args.length; i++) {
+      if (args[i] === '--priority' && args[i + 1]) splitPrio = args[++i];
+      else if (args[i] === '--type' && args[i + 1]) splitType = args[++i];
+      else if (!args[i].startsWith('--')) {
+        subTitles.push(...String(args[i]).split('|').map(s => s.trim()).filter(Boolean));
+      }
+    }
+
+    if (subTitles.length === 0) {
+      console.error('❌ Please provide at least one sub-ticket title to split into.');
+      process.exit(1);
+    }
+
+    const prefix = splitType === 'bug' || String(parentTask.id).startsWith('BUG-') ? 'BUG' : 'FEAT';
+    const nextSeqId = () => {
+      const re = new RegExp(`^${prefix}-(\\d+)$`, 'i');
+      const maxNum = data.tasks.reduce((max, t) => {
+        const m = String(t.id).match(re);
+        return m ? Math.max(max, parseInt(m[1], 10)) : max;
+      }, 100);
+      return `${prefix}-${maxNum + 1}`;
+    };
+
+    ensureTaskActionItems(parentTask);
+    const createdIds = [];
+    for (const subTitle of subTitles) {
+      const childId = nextSeqId();
+      const childDesc = `Atomic sub-ticket split from [${parentTask.id}] (${parentTask.title}): ${subTitle}`;
+      const childTask = {
+        id: childId,
+        parentId: parentTask.id,
+        type: splitType,
+        title: subTitle,
+        status: 'todo',
+        priority: splitPrio,
+        components: Array.isArray(parentTask.components) ? [...parentTask.components] : [],
+        attachments: [],
+        description: childDesc,
+        spec: childDesc,
+        acceptanceCriteria: [
+          `Complete implementation for ${subTitle}`,
+          `Verify deterministic tests and lint checks for [${childId}]`
+        ]
+      };
+      ensureTaskActionItems(childTask);
+      data.tasks.push(childTask);
+      createdIds.push(childId);
+
+      parentTask.actionItems.push({
+        id: `${parentTask.id}-ACT-${parentTask.actionItems.length + 1}`,
+        text: `[${childId}] ${subTitle}`,
+        owner: 'antigravity',
+        done: false
+      });
+    }
+
+    data.activePlanTaskIds = [parentTask.id, ...createdIds];
+    saveBacklog(data);
+    renderMigrationBoard(data);
+    writeReviewPaneArtifacts(data, REPO_ROOT, true);
+    ensureDaemonRunning();
+
+    console.log(`\n✂️  Split [${parentTask.id}] into ${createdIds.length} atomic backlog ticket(s): ${createdIds.join(', ')}`);
+    for (const cid of createdIds) {
+      const ct = data.tasks.find(t => t.id === cid);
+      console.log(`   └─ 📋 [${ct.id}] (${ct.priority.toUpperCase()}) ${ct.title}`);
+    }
+    console.log(`💡 Kick off all split tickets: "/backlog-start ${createdIds.join(', ')}"\n`);
+    return;
+  }
+
+  if (command === 'advise') {
+    const targetId = args[1] || '';
+    const lintScript = path.join(REPO_ROOT, 'scripts', 'lint-memory.mjs');
+    if (fs.existsSync(lintScript)) {
+      const lintArgs = targetId ? [lintScript, '--advise', targetId] : [lintScript, '--advise'];
+      spawnSync(process.execPath, lintArgs, { cwd: REPO_ROOT, stdio: 'inherit' });
+      return;
+    }
+    console.log('ℹ️  Run "node scripts/lint-memory.mjs --advise [TICKET_ID]" for verbose AGY Model & Quality-to-Credit ROI guidance.');
+    return;
+  }
+
   if (command === 'prompt') {
     const rawIds = args.slice(1).join(' ').split(/[\s,]+/).filter(Boolean);
     if (rawIds.length === 0) {
@@ -3482,14 +4810,28 @@ function main() {
     }
 
     const idList = rawIds.join(', ');
-    const kickoffCmd = `/backlog-start ${idList}`;
+    const firstTask = data.tasks.find(t => t.id.toLowerCase() === rawIds[0].toLowerCase()) || null;
+    const compCount = firstTask && Array.isArray(firstTask.components) ? firstTask.components.length : 0;
+    const prio = String(firstTask?.priority || 'medium').toLowerCase();
+    const recEffort = (compCount >= 3 || prio === 'high') ? 'high' : (prio === 'low' ? 'low' : 'medium');
+    const recModel = recEffort === 'high'
+      ? 'Plan on Gemini 4 Argon/Carbon (High) or Claude Opus 5.5 -> Execute on Gemini 4 Neon (Med) or Claude Sonnet 5.5 (Med)'
+      : recEffort === 'low'
+        ? 'Gemini 3.8 Flash (Low/Med) · GPT-OSS 120B (Med) [Skip separate /plan]'
+        : 'Gemini 4 Neon (Medium) or Claude Sonnet 5.5 (Medium)';
+    const kickoffCmd = recEffort === 'high'
+      ? `/effort high /backlog-plan ${idList}`
+      : `/effort ${recEffort} /backlog-start ${idList}`;
     const copied = copyToNativeOsClipboard(kickoffCmd);
-    console.log(`\n💡 Ultra-Frugal Kickoff Command for [${idList}]${copied ? ' (Copied to clipboard!)' : ''}:`);
-    console.log(`   ${kickoffCmd}\n`);
+    console.log(`\n💡 Optimal Quality-to-Credit Kickoff Command for [${idList}]${copied ? ' (Copied to clipboard!)' : ''}:`);
+    console.log(`   ${kickoffCmd}`);
+    console.log(`   🎯 Best AGY Model: ${recModel}`);
+    console.log(`   💰 Run "npm run backlog advise ${rawIds[0]}" for the full verbose 3-family model & quota-pool breakdown.\n`);
     return;
   }
 
   if (command === 'render') {
+    saveBacklog(data);
     renderMigrationBoard(data);
     writeReviewPaneArtifacts(data);
     ensureDaemonRunning();

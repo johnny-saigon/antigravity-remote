@@ -695,11 +695,34 @@ function distillRecentWorkspaceActivity(rootDir, hookPayload) {
   const touchedFiles = new Set();
   if (hookPayload && hookPayload.toolCall && hookPayload.toolCall.args) {
     const tcArgs = hookPayload.toolCall.args;
-    const f = tcArgs.TargetFile || tcArgs.AbsolutePath;
-    if (f && String(f).startsWith(rootDir + '/')) {
-      const rel = String(f).slice(rootDir.length + 1);
-      if (!rel.startsWith('memory-bank/') && !rel.startsWith('docs/backlog.html')) {
-        touchedFiles.add(rel);
+    const f = tcArgs.Path || tcArgs.TargetFile || tcArgs.AbsolutePath;
+    if (f) {
+      const fStr = String(f);
+      const base = path.basename(fStr);
+      // Auto-mirror brain planning artifacts (implementation_plan.md, task.md, walkthrough.md) into docs/planning/
+      // AND auto-ingest any planned ticket IDs (`FEAT-*`, `BUG-*`, `UX-*`, `QA-*`) directly into docs/backlog.json
+      if (
+        fStr.includes('/.gemini/antigravity/brain/') &&
+        ['implementation_plan.md', 'task.md', 'walkthrough.md'].includes(base) &&
+        fsSync.existsSync(fStr)
+      ) {
+        try {
+          const planDir = path.join(rootDir, 'docs', 'planning');
+          fsSync.mkdirSync(planDir, { recursive: true });
+          fsSync.copyFileSync(fStr, path.join(planDir, base));
+          if (base === 'implementation_plan.md') {
+            const backlogScriptPath = path.join(rootDir, 'scripts', 'backlog.mjs');
+            if (fsSync.existsSync(backlogScriptPath)) {
+              execSync('node scripts/backlog.mjs render', { cwd: rootDir, stdio: 'ignore' });
+            }
+          }
+        } catch {}
+      }
+      if (fStr.startsWith(rootDir + '/')) {
+        const rel = fStr.slice(rootDir.length + 1);
+        if (!rel.startsWith('memory-bank/') && !rel.startsWith('docs/backlog.html')) {
+          touchedFiles.add(rel);
+        }
       }
     }
   }
@@ -791,16 +814,17 @@ async function runSync() {
             }
 
             // Automatically re-render Review Pane artifacts (backlog.html & backlog-board.md)
-            // whenever docs/backlog.json is newer than docs/backlog.html or whenStop hook fires
+            // ONLY when docs/backlog.json is newer than docs/backlog.html (never unconditionally on Stop,
+            // which would clobber <brainDir>/implementation_plan.md's newest updatedAt / Proceed button!)
             const backlogHtmlPath = path.join(targetDir, 'docs', 'backlog.html');
             const backlogScriptPath = path.join(targetDir, 'scripts', 'backlog.mjs');
             if (fsSync.existsSync(backlogScriptPath)) {
-              let shouldRenderBacklog = !fsSync.existsSync(backlogHtmlPath) || hookEvent === 'Stop' || !hookEvent;
+              let shouldRenderBacklog = !fsSync.existsSync(backlogHtmlPath) || !hookEvent;
               if (!shouldRenderBacklog) {
                 try {
                   const jsonMtime = fsSync.statSync(backlogPath).mtimeMs;
                   const htmlMtime = fsSync.statSync(backlogHtmlPath).mtimeMs;
-                  if (jsonMtime >= htmlMtime) shouldRenderBacklog = true;
+                  if (jsonMtime > htmlMtime) shouldRenderBacklog = true;
                 } catch {
                   shouldRenderBacklog = true;
                 }
@@ -854,6 +878,14 @@ async function runSync() {
             log('  ✓ Updated memory-bank/progress.md');
           }
         }
+      } catch {}
+    }
+
+    // 4b. Auto-sync Canonical Living Documentation Hierarchy (`docs/{architecture,design,quality,operations}/`) if installed
+    const livingDocsScriptPath = path.join(targetDir, 'scripts/sync-living-docs.mjs');
+    if (fsSync.existsSync(livingDocsScriptPath)) {
+      try {
+        execSync('node scripts/sync-living-docs.mjs --quiet', { cwd: targetDir, stdio: 'ignore' });
       } catch {}
     }
 

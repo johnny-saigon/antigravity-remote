@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "lastUpdated": "2026-10-22T16:07:41.014Z",
+  "lastUpdated": "2026-11-23T09:04:18.766Z",
   "project": "antigravity-remote",
   "tasks": [
     {
@@ -186,6 +186,35 @@
         {
           "id": "FEAT-106-ACT-2",
           "text": "Updates active git SHA badge in the top Workspace Pill.",
+          "owner": "antigravity",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "FEAT-119",
+      "type": "feature",
+      "title": "Investigate STOPPED removebg_caddy causing ECONNREFUSED on isolated Vast.ai port 44246 (:10200)",
+      "status": "todo",
+      "priority": "medium",
+      "components": [],
+      "attachments": [],
+      "description": "**Component Modifications (Dependencies First)**:",
+      "spec": "**Component Modifications (Dependencies First)**:",
+      "acceptanceCriteria": [
+        "Complete implementation and verification for Investigate STOPPED removebg_caddy causing ECONNREFUSED on isolated Vast.ai port 44246 (:10200)",
+        "Verify deterministic tests and lint checks for [FEAT-119]"
+      ],
+      "actionItems": [
+        {
+          "id": "FEAT-119-ACT-1",
+          "text": "Complete implementation and verification for Investigate STOPPED removebg_caddy causing ECONNREFUSED on isolated Vast.ai port 44246 (:10200)",
+          "owner": "antigravity",
+          "done": false
+        },
+        {
+          "id": "FEAT-119-ACT-2",
+          "text": "Verify deterministic tests and lint checks for [FEAT-119]",
           "owner": "antigravity",
           "done": false
         }

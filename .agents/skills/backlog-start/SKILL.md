@@ -13,8 +13,9 @@ Execute the following 3 phases autonomously:
 
 ## Phase 1: Ingestion, Attachment Unpacking & Task Activation (0 Token Waste)
 
-1. **Parse Ticket IDs & Inline Attachments**:
+1. **Parse Ticket IDs, Sync Any Unregistered `/plan` Tickets & Ingest Inline Attachments**:
    - Extract the ticket ID(s) from the command argument (e.g. `FEAT-101`, `BUG-102`).
+   - **Mandatory Plan-to-Backlog Ticket Sync**: If executing right after an approved `/plan` (`implementation_plan.md`) whose deliverables have not yet been registered or split into `docs/backlog.json`, run `npm run backlog plan --from-plan [--split]` (or `npm run backlog add` / `npm run backlog split`) first so every planned unit of work has an active ticket in `docs/backlog.json`.
    - Detect any files attached directly in the user's message (`@[...]` mentions, uploaded media/files in the prompt, or file paths such as `~/Downloads/ux-ui.zip` passed alongside the command).
    - If any new file paths were passed inline in the prompt, attach them to the ticket so they are tracked and unpacked:
      ```bash
@@ -41,7 +42,7 @@ Execute the following 3 phases autonomously:
      - If an approved `implementation_plan.md` exists in `<brainDir>/implementation_plan.md` or `docs/planning/implementation_plan.md`, ingest its **Proposed Changes**, **User Review Required** notes, and **Verification Plan** as the authoritative blueprint.
      - If the ticket is a complex feature or multi-file bug and no concrete plan has been locked down yet, update `<brainDir>/implementation_plan.md` and `docs/planning/implementation_plan.md` first (via `npm run backlog plan <TICKET_ID>`) before editing production files—reviewing a text plan costs a fraction of a credit compared to reverting broken file edits.
    - **Match Reasoning Effort (`/effort`)**:
-     - Recommend `/effort low` or `/effort medium` for boilerplate UI, routing, or simple CRUD endpoints, and `/effort high` only for complex state, concurrency, or architecture logic.
+     - Match the ticket complexity to the best Quality-to-Used-Credits AGY model (`npm run backlog advise <ID>`): `/effort low` on **Gemini 3.8 Flash (Low/Med)** / **GPT-OSS 120B (Med)** for 1-file UI/copy tweaks (skip separate `/plan`); `/effort medium` on **Gemini 4 Neon (Med/High)** / **Claude Sonnet 5.5 (Med)** for standard 1–2 file tickets; `/effort high` Two-Stage Split Routing (separate `/backlog-plan` on **Gemini 4 Argon/Carbon** or **Claude Opus 5.5** -> switch down to **Neon/Sonnet** for `/backlog-start`, saving 55%–80% credits) for `>= 3` file or P0 tickets; and **Orchestrator (Neon/Carbon)** strictly for parallel multi-module swarms.
    - This automatically refreshes the Antigravity Review pane Kanban board (`backlog.html`) and marks `<TICKET_ID>` as `[/]` in `task.md`.
 4. **Output Activation Banner**:
    - Output a brief acknowledgment:
@@ -56,7 +57,7 @@ Execute the following 3 phases autonomously:
 > **Core Principle — Frugal on Context, Uncompromising on Quality**:
 > Token frugality means eliminating redundant context re-ingestion, multi-turn task repetition, and bloated memory files (`< 150 lines`). It **NEVER** means cutting corners on engineering quality, visual UX/UI fidelity, root-cause analysis, edge-case coverage, type safety, or verification rigor.
 > - **Memory-First Lookup**: Always check `memory-bank/activeContext.md` and `docs/backlog.json` before running any diagnostic commands. Never re-investigate what is already recorded in `activeContext.md` or `backlog.json`.
-> - **Never Read `transcript.jsonl` or Sibling Repos**: Strictly forbid reading `.system_generated/logs/transcript*.jsonl` or grepping sibling repos (`BinaryDay`, `SnapCal`, `RemoveBackGround`, `AntigravityRemote`) unless explicitly requested for transcript recovery.
+> - **Never Read `transcript.jsonl` or Sibling Repos**: Strictly forbid reading `.system_generated/logs/transcript*.jsonl` or grepping sibling repos (`BinaryDay`, `SnapCal`, `RemoveBackGround`, `wiro`) unless explicitly requested for transcript recovery.
 > - **Hard Turn Budget (`≤ 8 Tool Turns per Fix`)**: Batch all file reads into 1 turn, all edits into 1–2 turns, and all verification/deployment commands into 1–2 chained shell calls.
 
 1. **Targeted Entry, UX/UI Fidelity & Thorough Dependency Inspection**:
@@ -116,4 +117,4 @@ Execute the following 3 phases autonomously:
      - **Verification**: Test pass count and status.
      - **Board Status**: Review pane Kanban board updated to `DONE`.
      - **Next Up**: List the next recommended ticket from `docs/backlog.json` and its recommended `/effort` level.
-     - **💡 Stop the Credit Bleed**: Recommend running `/clear` (then `/start`) or `/compact` now so this task's token history is not carried into the next task, `/context` to inspect loaded files, and `/credits` or `/usage` to monitor model usage (with the Google One / Antigravity **Overage Toggle disabled**).
+     - **💡 Stop the Credit Bleed**: Recommend running `/start` now (which automatically executes `/clear` & `/compact` pre-flight) so this task's token history is not carried into the next task, `/context` to inspect loaded files, and `/credits` or `/usage` to monitor model usage (with the Google One / Antigravity **Overage Toggle disabled**).
