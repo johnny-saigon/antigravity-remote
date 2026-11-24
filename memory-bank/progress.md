@@ -1,6 +1,7 @@
 # AntigravityRemote — Progress Tracker & Acceptance Matrix
 
 ## 1. Milestone Tracking
+- [x] **fix(backlog): unify canonical Backlog Kanban renderer [skip ci]** (`c46dab0`)
 - [x] **fix(backlog): unify canonical Backlog Kanban renderer & SSR/client ROI cards [skip ci]** (`b5b1ddb`)
 - [x] **feat(skills): install executable /context, /clear, /effort, /credits, and /usage skills [skip ci]** (`b9bddfc`)
 - [x] **feat(backlog): add clickable In Progress Action Items inspector & assignment modal [skip ci]** (`e00e499`)
