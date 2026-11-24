@@ -1,6 +1,7 @@
 # AntigravityRemote — Progress Tracker & Acceptance Matrix
 
 ## 1. Milestone Tracking
+- [x] **feat(kanban): upgrade to 4-column READY (Planned) Backlog Kanban & Credit Savings workflow [skip ci]** (`00cc017`)
 - [x] **fix(backlog): unify canonical Backlog Kanban renderer [skip ci]** (`c46dab0`)
 - [x] **fix(backlog): unify canonical Backlog Kanban renderer & SSR/client ROI cards [skip ci]** (`b5b1ddb`)
 - [x] **feat(skills): install executable /context, /clear, /effort, /credits, and /usage skills [skip ci]** (`b9bddfc`)
